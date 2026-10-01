@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     
     # Economic Targets
     TARGET_MAX_CHECK_COST_USD: float = Field(default=0.075, description="Maximum allowable check cost")
+    
+    # Resiliency & Concurrency Controls
+    INSPECTION_TIMEOUT_SECONDS: float = Field(default=25.0, description="Max execution timeout per unit inspection")
+    MAX_CONCURRENT_INSPECTIONS: int = Field(default=10, description="Max concurrent active unit inspections")
 
     class Config:
         env_file = ".env"

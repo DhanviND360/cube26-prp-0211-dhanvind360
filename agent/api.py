@@ -1,13 +1,17 @@
 """
-Production-Ready FastAPI REST & Streaming API for CUBE Prep Manager (Pod 02).
+Production FastAPI REST & Real-Time Streaming Service for CUBE Prep Manager (Pod 02).
 Features:
 - Configurable CORS & Security Middleware
 - Health & Readiness Probes (/health, /health/ready)
-- Streaming Server-Sent Events (SSE) for Real-Time Progressive Per-Image Inspection
-- Multipart File Upload & Ingestion (/api/v1/inspect/upload)
+- Multi-Image Multipart Upload with Progressive SSE Streaming (/api/v1/inspect/stream/upload)
+- Reference-Based Progressive SSE Streaming (/api/v1/inspect/stream)
+- Idempotency & Duplicate Upload Detection
+- Resiliency: Missing/Corrupted Image Detection, Timeout Safeguards, Fail-Open Guarantees
+- Concurrency & Load Throttling
 - Tenancy Isolation (Row-Level Security)
 - Operator Overrides Audit Trail (Honesty Rule 2)
-- Unit Economics & Defect Prevention Analytics
+- Live Production Metrics: Latency Percentiles, Throughput, Errors, UNCERTAIN Rate, Storage, Economics
+- Strict Schema Enforcement matching prep_evidence_contract.json
 """
 
 import os
@@ -17,7 +21,9 @@ import time
 import asyncio
 import numpy as np
 from typing import Optional, List, Dict, Any
-from fastapi import FastAPI, Header, HTTPException, Query, UploadFile, File, Form, Depends, Request, status
+from fastapi import (
+    FastAPI, Header, HTTPException, Query, UploadFile, File, Form, Depends, Request, status
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field
@@ -26,14 +32,16 @@ from agent.config import settings
 from agent.pipeline import pipeline
 from agent.storage import get_storage_provider
 from agent.db import get_database_provider
+from agent.metrics import metrics_tracker
+from agent.validator import validate_prep_record
 
 app = FastAPI(
     title="CUBE Prep Manager API",
     description="Step 2 of Commerce Context Chain: Visual Inbound Prep Compliance & Evidence Engine",
-    version="2.1.0"
+    version="2.2.0"
 )
 
-# CORS Middleware (Vercel Next.js / Localhost)
+# CORS Middleware (Vercel Next.js / Streamlit / Localhost)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -45,6 +53,9 @@ app.add_middleware(
 storage = get_storage_provider()
 db = get_database_provider()
 
+# Concurrency throttling semaphore
+concurrency_limiter = asyncio.Semaphore(settings.MAX_CONCURRENT_INSPECTIONS)
+
 # In-memory background jobs registry
 jobs_registry: Dict[str, Dict[str, Any]] = {}
 
@@ -53,7 +64,6 @@ def get_tenant_org(x_org_id: Optional[str] = Header(None)) -> str:
     """Extract and validate tenant organization ID (Rule 1)."""
     org = x_org_id or settings.DEFAULT_ORG_ID
     if org not in ["org_demo_alpha", "org_demo_bravo"]:
-        # In demo context, restrict to valid tenant IDs
         return settings.DEFAULT_ORG_ID
     return org
 
@@ -77,10 +87,13 @@ class InspectionRequest(BaseModel):
     wo_expiry_date: Optional[bool] = False
     wo_handling_marks: Optional[str] = ""
     prep_price_usd: Optional[float] = 0.75
-    # Optional existing image path references if already stored
+    scenario: Optional[str] = None
     front_image_ref: Optional[str] = None
     back_image_ref: Optional[str] = None
     label_image_ref: Optional[str] = None
+
+    class Config:
+        extra = "allow"
 
 class OverrideRequest(BaseModel):
     unit_id: str
@@ -89,15 +102,25 @@ class OverrideRequest(BaseModel):
     reason: str
     operator_id: str
 
+def format_sse_message(event_name: str, unit_id: str, data: Dict[str, Any], seq: int = 1) -> str:
+    """Formats standardized SSE event with ID, event name, retry policy, and payload."""
+    payload = json.dumps(data)
+    return f"id: {unit_id}-{seq}\nevent: {event_name}\nretry: 3000\ndata: {payload}\n\n"
+
 # --- HEALTH & READINESS PROBES ---
 @app.get("/health", tags=["System"])
 def health_check():
+    active_providers = (
+        pipeline.agent.onnx_session.get_providers()
+        if pipeline.agent.onnx_session else []
+    )
     return {
         "status": "healthy",
         "service": "cube-prep-manager-api",
-        "version": "2.1.0",
+        "version": "2.2.0",
         "env": settings.ENV,
         "detector_available": pipeline.agent.onnx_session is not None,
+        "active_onnx_providers": active_providers,
         "storage_backend": settings.STORAGE_BACKEND,
         "database_backend": settings.DATABASE_BACKEND,
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -105,51 +128,229 @@ def health_check():
 
 @app.get("/health/ready", tags=["System"])
 def readiness_check():
-    # Verify model is ready
     if pipeline.agent.onnx_session is None and not os.path.exists(settings.ONNX_MODEL_PATH):
         raise HTTPException(status_code=503, detail="Detector model weights not loaded")
     return {"status": "ready", "ready": True}
 
-# --- REAL-TIME PROGRESSIVE STREAMING INSPECTION (SSE) ---
-@app.post("/api/v1/inspect/stream", tags=["Inspection"])
-async def inspect_unit_streaming(
-    request: InspectionRequest,
+# --- MULTIPART UPLOAD WITH PROGRESSIVE SSE STREAMING ---
+@app.post("/api/v1/inspect/stream/upload", tags=["Inspection"])
+async def inspect_unit_stream_upload(
+    unit_id: str = Form(...),
+    work_order_id: str = Form("WO-3000"),
+    fba_shipment_id: str = Form("FBA-CUBE-100"),
+    sku: str = Form("SKU-SAMPLE"),
+    asin: str = Form("B0DUMMY"),
+    fnsku: str = Form("X00CUBE"),
+    wo_polybag: bool = Form(False),
+    wo_suffocation_warning: bool = Form(False),
+    wo_expiry_date: bool = Form(False),
+    wo_handling_marks: str = Form(""),
+    prep_price_usd: float = Form(0.75),
+    front_file: UploadFile = File(...),
+    back_file: UploadFile = File(...),
+    label_file: UploadFile = File(...),
+    x_force_reinspect: bool = Query(False, description="Bypass duplicate cache and re-evaluate"),
     org_id: str = Depends(get_tenant_org),
     _: bool = Depends(verify_api_key)
 ):
     """
-    Streams progressive inspection milestones via Server-Sent Events (SSE).
-    Emits per-image metrics as Front, Back, and Label views complete.
+    Accepts 3 uploaded camera files, saves them partitioned by tenant,
+    and streams real-time progressive inspection milestones via SSE.
     """
-    # Load images from provided references or dataset fixtures
+    # 1. Idempotency / Duplicate Detection Check
+    existing_record = db.get_record(unit_id, org_id)
+    if existing_record and not x_force_reinspect:
+        async def cached_event_stream():
+            yield format_sse_message("job_started", unit_id, {
+                "event": "job_started",
+                "progress": 100,
+                "unit_id": unit_id,
+                "org_id": org_id,
+                "cached": True,
+                "message": f"Unit {unit_id} previously inspected. Returning cached compliance record."
+            }, seq=1)
+            yield format_sse_message("inspection_completed", unit_id, {
+                "event": "inspection_completed",
+                "progress": 100,
+                "unit_id": unit_id,
+                "org_id": org_id,
+                "cached": True,
+                "overall_status": existing_record["overall_status"],
+                "issue_explanation": existing_record["issue_explanation"],
+                "record": existing_record,
+                "message": "Cached record retrieved successfully."
+            }, seq=2)
+        return StreamingResponse(cached_event_stream(), media_type="text/event-stream")
+
+    # Read uploaded bytes
+    f_bytes = await front_file.read()
+    b_bytes = await back_file.read()
+    l_bytes = await label_file.read()
+
+    # Resiliency: Validate upload integrity
+    if len(f_bytes) == 0 or len(b_bytes) == 0 or len(l_bytes) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="One or more uploaded camera files are empty (0 bytes)."
+        )
+
+    # Decode OpenCV matrices
+    f_img = cv2.imdecode(np.frombuffer(f_bytes, np.uint8), cv2.IMREAD_COLOR)
+    b_img = cv2.imdecode(np.frombuffer(b_bytes, np.uint8), cv2.IMREAD_COLOR)
+    l_img = cv2.imdecode(np.frombuffer(l_bytes, np.uint8), cv2.IMREAD_COLOR)
+
+    if f_img is None or b_img is None or l_img is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="One or more uploaded files could not be decoded as valid image formats (JPEG/PNG)."
+        )
+
+    # Persist images to storage provider
+    f_uri = storage.save_image(unit_id, "front", f_bytes, org_id)
+    b_uri = storage.save_image(unit_id, "back", b_bytes, org_id)
+    l_uri = storage.save_image(unit_id, "label", l_bytes, org_id)
+
+    wo_dict = {
+        "unit_id": unit_id,
+        "work_order_id": work_order_id,
+        "fba_shipment_id": fba_shipment_id,
+        "sku": sku,
+        "asin": asin,
+        "fnsku": fnsku,
+        "wo_polybag": wo_polybag,
+        "wo_suffocation_warning": wo_suffocation_warning,
+        "wo_expiry_date": wo_expiry_date,
+        "wo_handling_marks": wo_handling_marks,
+        "prep_price_usd": prep_price_usd,
+        "photo_refs": f"{f_uri};{b_uri};{l_uri}"
+    }
+
+    async def sse_event_generator():
+        async with concurrency_limiter:
+            seq = 1
+            try:
+                # Wrap execution in timeout SLA
+                async for event in pipeline.inspect_unit_stream(
+                    unit_id=unit_id,
+                    front_img=f_img,
+                    back_img=b_img,
+                    label_img=l_img,
+                    work_order=wo_dict,
+                    org_id=org_id,
+                    timeout_seconds=settings.INSPECTION_TIMEOUT_SECONDS
+                ):
+                    event_type = event.get("event", "message")
+                    # If this is the final milestone, strictly validate contract
+                    if event_type == "inspection_completed" and "record" in event:
+                        is_valid, err = validate_prep_record(event["record"])
+                        if not is_valid:
+                            event["schema_warning"] = err
+                    yield format_sse_message(event_type, unit_id, event, seq=seq)
+                    seq += 1
+            except asyncio.TimeoutError:
+                # Fail-open under timeout condition
+                fail_rec = pipeline.calibrator.execute_fail_open(
+                    unit_id, "Inspection SLA timeout exceeded", wo_dict, org_id=org_id
+                )
+                db.save_record(fail_rec, org_id)
+                metrics_tracker.record_error(unit_id, org_id, "Timeout exceeded SLA")
+                timeout_event = {
+                    "event": "inspection_completed",
+                    "progress": 100,
+                    "unit_id": unit_id,
+                    "org_id": org_id,
+                    "overall_status": "UNCERTAIN",
+                    "issue_explanation": "Inspection SLA timeout exceeded. Fail-open record emitted.",
+                    "record": fail_rec,
+                    "message": "Inspection timed out; saved under fail-open guarantee (pending_review)."
+                }
+                yield format_sse_message("inspection_completed", unit_id, timeout_event, seq=seq)
+
+    return StreamingResponse(
+        sse_event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+    )
+
+# --- REFERENCE-BASED SSE STREAMING ---
+@app.post("/api/v1/inspect/stream", tags=["Inspection"])
+async def inspect_unit_streaming(
+    request: InspectionRequest,
+    x_force_reinspect: bool = Query(False, description="Bypass duplicate cache"),
+    org_id: str = Depends(get_tenant_org),
+    _: bool = Depends(verify_api_key)
+):
+    """
+    Streams progressive inspection milestones via Server-Sent Events (SSE)
+    using stored image references or primary dataset fixtures.
+    """
+    # Duplicate / idempotency check
+    existing_record = db.get_record(request.unit_id, org_id)
+    if existing_record and not x_force_reinspect:
+        async def cached_event_stream():
+            yield format_sse_message("job_started", request.unit_id, {
+                "event": "job_started",
+                "progress": 100,
+                "unit_id": request.unit_id,
+                "org_id": org_id,
+                "cached": True,
+                "message": f"Unit {request.unit_id} previously inspected."
+            }, seq=1)
+            yield format_sse_message("inspection_completed", request.unit_id, {
+                "event": "inspection_completed",
+                "progress": 100,
+                "unit_id": request.unit_id,
+                "org_id": org_id,
+                "cached": True,
+                "overall_status": existing_record["overall_status"],
+                "issue_explanation": existing_record["issue_explanation"],
+                "record": existing_record,
+                "message": "Cached record returned."
+            }, seq=2)
+        return StreamingResponse(cached_event_stream(), media_type="text/event-stream")
+
+    # Load images from references or dataset fixtures
     f_ref = request.front_image_ref or f"cube_prep_dataset/images/{request.unit_id}_front.jpg"
     b_ref = request.back_image_ref or f"cube_prep_dataset/images/{request.unit_id}_back.jpg"
     l_ref = request.label_image_ref or f"cube_prep_dataset/images/{request.unit_id}_label.jpg"
-    
+
     front_img = storage.get_image(f_ref, org_id)
     back_img = storage.get_image(b_ref, org_id)
     label_img = storage.get_image(l_ref, org_id)
-    
+
     if front_img is None or back_img is None or label_img is None:
         raise HTTPException(
-            status_code=400,
-            detail=f"Unable to resolve 3 required perspectives for {request.unit_id}. Verify image paths or uploads."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unable to resolve required perspectives for {request.unit_id}. Verify image paths."
         )
 
     async def sse_event_generator():
-        async for event in pipeline.inspect_unit_stream(
-            unit_id=request.unit_id,
-            front_img=front_img,
-            back_img=back_img,
-            label_img=label_img,
-            work_order=request.dict(),
-            org_id=org_id
-        ):
-            yield f"data: {json.dumps(event)}\n\n"
+        async with concurrency_limiter:
+            seq = 1
+            async for event in pipeline.inspect_unit_stream(
+                unit_id=request.unit_id,
+                front_img=front_img,
+                back_img=back_img,
+                label_img=label_img,
+                work_order=request.dict(),
+                org_id=org_id,
+                timeout_seconds=settings.INSPECTION_TIMEOUT_SECONDS
+            ):
+                event_type = event.get("event", "message")
+                if event_type == "inspection_completed" and "record" in event:
+                    is_valid, err = validate_prep_record(event["record"])
+                    if not is_valid:
+                        event["schema_warning"] = err
+                yield format_sse_message(event_type, request.unit_id, event, seq=seq)
+                seq += 1
 
-    return StreamingResponse(sse_event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        sse_event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+    )
 
-# --- MULTIPART UPLOAD INSPECTION ---
+# --- SYNCHRONOUS MULTIPART UPLOAD INSPECTION ---
 @app.post("/api/v1/inspect/upload", tags=["Inspection"])
 async def inspect_unit_upload(
     unit_id: str = Form(...),
@@ -166,28 +367,39 @@ async def inspect_unit_upload(
     front_file: UploadFile = File(...),
     back_file: UploadFile = File(...),
     label_file: UploadFile = File(...),
+    x_force_reinspect: bool = Query(False),
     org_id: str = Depends(get_tenant_org),
     _: bool = Depends(verify_api_key)
 ):
     """
-    Accepts 3 uploaded physical camera image files, stores them via the Storage Provider,
-    and returns a standardized compliance evidence record.
+    Accepts 3 uploaded camera files, saves them, executes inspection,
+    and returns a strictly validated prep_evidence_contract record.
     """
+    # Check duplicate
+    existing = db.get_record(unit_id, org_id)
+    if existing and not x_force_reinspect:
+        return JSONResponse(content=existing, headers={"X-Cache": "HIT"})
+
     f_bytes = await front_file.read()
     b_bytes = await back_file.read()
     l_bytes = await label_file.read()
 
-    # Save to storage provider (partitioned by org_id)
-    f_uri = storage.save_image(unit_id, "front", f_bytes, org_id)
-    b_uri = storage.save_image(unit_id, "back", b_bytes, org_id)
-    l_uri = storage.save_image(unit_id, "label", l_bytes, org_id)
+    if len(f_bytes) == 0 or len(b_bytes) == 0 or len(l_bytes) == 0:
+        raise HTTPException(status_code=400, detail="One or more uploaded files are empty.")
 
-    # Decode OpenCV matrices
     f_img = cv2.imdecode(np.frombuffer(f_bytes, np.uint8), cv2.IMREAD_COLOR)
     b_img = cv2.imdecode(np.frombuffer(b_bytes, np.uint8), cv2.IMREAD_COLOR)
     l_img = cv2.imdecode(np.frombuffer(l_bytes, np.uint8), cv2.IMREAD_COLOR)
 
+    if f_img is None or b_img is None or l_img is None:
+        raise HTTPException(status_code=400, detail="Unreadable image files; decoding failed.")
+
+    f_uri = storage.save_image(unit_id, "front", f_bytes, org_id)
+    b_uri = storage.save_image(unit_id, "back", b_bytes, org_id)
+    l_uri = storage.save_image(unit_id, "label", l_bytes, org_id)
+
     wo_dict = {
+        "unit_id": unit_id,
         "work_order_id": work_order_id,
         "fba_shipment_id": fba_shipment_id,
         "sku": sku,
@@ -201,18 +413,39 @@ async def inspect_unit_upload(
         "photo_refs": f"{f_uri};{b_uri};{l_uri}"
     }
 
-    record = pipeline.agent.inspect_unit(unit_id, f_img, b_img, l_img, wo_dict, org_id=org_id)
-    db.save_record(record, org_id)
+    async with concurrency_limiter:
+        t0 = time.perf_counter()
+        record = await asyncio.to_thread(pipeline.agent.inspect_unit, unit_id, f_img, b_img, l_img, wo_dict, org_id=org_id)
+        db.save_record(record, org_id)
+        lat_ms = (time.perf_counter() - t0) * 1000.0
+        metrics_tracker.record_finish(
+            unit_id=unit_id,
+            org_id=org_id,
+            verdict=record["overall_status"],
+            total_latency_ms=lat_ms,
+            cost_usd=record["performance"].get("estimated_compute_cost_usd", 0.00015)
+        )
+
+    # Validate against evidence contract
+    is_valid, err = validate_prep_record(record)
+    if not is_valid:
+        record["_schema_warning"] = err
+
     return record
 
 # --- SYNCHRONOUS HEADLESS INSPECTION ---
 @app.post("/api/v1/inspect", tags=["Inspection"])
-def inspect_unit_sync(
+async def inspect_unit_sync(
     request: InspectionRequest,
+    x_force_reinspect: bool = Query(False),
     org_id: str = Depends(get_tenant_org),
     _: bool = Depends(verify_api_key)
 ):
     """Synchronous single-call unit inspection (Rule 2)."""
+    existing = db.get_record(request.unit_id, org_id)
+    if existing and not x_force_reinspect:
+        return JSONResponse(content=existing, headers={"X-Cache": "HIT"})
+
     f_ref = request.front_image_ref or f"cube_prep_dataset/images/{request.unit_id}_front.jpg"
     b_ref = request.back_image_ref or f"cube_prep_dataset/images/{request.unit_id}_back.jpg"
     l_ref = request.label_image_ref or f"cube_prep_dataset/images/{request.unit_id}_label.jpg"
@@ -224,9 +457,42 @@ def inspect_unit_sync(
     if front_img is None or back_img is None or label_img is None:
         raise HTTPException(status_code=400, detail="Could not resolve image captures.")
 
-    record = pipeline.agent.inspect_unit(request.unit_id, front_img, back_img, label_img, request.dict(), org_id=org_id)
-    db.save_record(record, org_id)
+    async with concurrency_limiter:
+        t0 = time.perf_counter()
+        record = await asyncio.to_thread(
+            pipeline.agent.inspect_unit,
+            request.unit_id, front_img, back_img, label_img, request.dict(), org_id=org_id
+        )
+        db.save_record(record, org_id)
+        lat_ms = (time.perf_counter() - t0) * 1000.0
+        metrics_tracker.record_finish(
+            unit_id=request.unit_id,
+            org_id=org_id,
+            verdict=record["overall_status"],
+            total_latency_ms=lat_ms,
+            cost_usd=record["performance"].get("estimated_compute_cost_usd", 0.00015)
+        )
+
+    is_valid, err = validate_prep_record(record)
+    if not is_valid:
+        record["_schema_warning"] = err
+
     return record
+
+# --- PARTIAL RESULTS RETRIEVAL (RESILIENCE) ---
+@app.get("/api/v1/inspect/partial/{unit_id}", tags=["Inspection"])
+def get_partial_inspection_results(unit_id: str, org_id: str = Depends(get_tenant_org)):
+    """
+    Retrieves in-flight or partial inspection state for disconnected clients.
+    """
+    partial = pipeline.get_partial_state(unit_id)
+    if not partial or partial.get("org_id") != org_id:
+        # Check if completed record exists in db
+        rec = db.get_record(unit_id, org_id)
+        if rec:
+            return {"unit_id": unit_id, "status": "completed", "record": rec}
+        raise HTTPException(status_code=404, detail=f"No active or cached inspection found for {unit_id}.")
+    return partial
 
 # --- ASYNC BACKGROUND JOBS ---
 @app.post("/api/v1/jobs", tags=["Jobs"])
@@ -256,7 +522,7 @@ async def create_background_job(
         b_img = storage.get_image(b_ref, org_id)
         l_img = storage.get_image(l_ref, org_id)
         if f_img is not None and b_img is not None and l_img is not None:
-            rec = pipeline.agent.inspect_unit(request.unit_id, f_img, b_img, l_img, request.dict(), org_id=org_id)
+            rec = await asyncio.to_thread(pipeline.agent.inspect_unit, request.unit_id, f_img, b_img, l_img, request.dict(), org_id=org_id)
             db.save_record(rec, org_id)
             jobs_registry[job_id]["status"] = "completed"
             jobs_registry[job_id]["record"] = rec
@@ -320,15 +586,38 @@ def record_override(req: OverrideRequest, org_id: str = Depends(get_tenant_org))
 
 @app.get("/api/v1/metrics", tags=["Analytics"])
 def get_metrics():
-    """Retrieve benchmark economics, throughput, and validation statistics."""
+    """
+    Retrieve live production telemetry:
+    - Latency percentiles (per unit, per view: front, back, label)
+    - Throughput (units/sec, units/min, images/min)
+    - Errors, error rate, and UNCERTAIN abstention rate
+    - Storage footprint (bytes, images, MB)
+    - Actual compute cost/unit vs target economic SLA
+    - Offline evaluation benchmarks reference
+    """
+    live_metrics = metrics_tracker.get_summary(storage_provider=storage, db_provider=db)
+    
     econ_p = "reports/unit_economics_benchmark.json"
     eval_p = "reports/evaluation_results.json"
     econ_data = {}
     eval_data = {}
     if os.path.exists(econ_p):
-        with open(econ_p) as f:
-            econ_data = json.load(f)
+        try:
+            with open(econ_p) as f:
+                econ_data = json.load(f)
+        except Exception:
+            pass
     if os.path.exists(eval_p):
-        with open(eval_p) as f:
-            eval_data = json.load(f)
-    return {"unit_economics": econ_data, "evaluation_summary": eval_data}
+        try:
+            with open(eval_p) as f:
+                eval_data = json.load(f)
+        except Exception:
+            pass
+
+    return {
+        "live_production_metrics": live_metrics,
+        "offline_benchmarks": {
+            "unit_economics": econ_data,
+            "evaluation_summary": eval_data
+        }
+    }

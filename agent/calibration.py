@@ -50,26 +50,53 @@ class CalibrationManager:
             
         return True, metrics, None
 
-    def execute_fail_open(self, unit_id, error_message, work_order=None):
+    def execute_fail_open(self, unit_id, error_message, work_order=None, org_id="org_demo_alpha"):
         """
         Engineering Rule 3: Fail Open.
-        A model error or timeout still saves capture and produces a valid record marked pending_review.
+        A model error or timeout still saves capture and produces a valid record marked pending_review,
+        strictly conforming to prep_evidence_contract.json.
         """
+        wo = work_order or {}
+        num_part = unit_id.replace("UNIT-", "") if "UNIT-" in unit_id else "9999"
+        record_id = f"PRP-{num_part.zfill(4)}"
+        
         record = {
+            "record_id": record_id,
             "unit_id": unit_id,
+            "org_id": org_id,
+            "work_order_id": str(wo.get("work_order_id", "WO-3000")),
+            "fba_shipment_id": str(wo.get("fba_shipment_id", "FBA-CUBE-100")),
+            "sku": str(wo.get("sku", "UNKNOWN-SKU")),
+            "asin": str(wo.get("asin", "UNKNOWN-ASIN")),
+            "fnsku": str(wo.get("fnsku", "UNKNOWN-FNSKU")),
             "overall_status": "UNCERTAIN",
             "workflow_state": "pending_review",
-            "fail_open_triggered": True,
-            "error_detail": str(error_message),
-            "timestamp": time.time(),
-            "explanation": "Agent pipeline encountered a fail-open condition. Capture preserved and flagged for human operator review without line stoppage.",
+            "issue_explanation": "Agent pipeline encountered a fail-open condition. Capture preserved and flagged for human operator review without line stoppage.",
+            "failure_reasons": [],
+            "uncertain_reasons": [f"Fail-open triggered: {str(error_message)}"],
             "checks": {
-                "polybag_present_sealed": {"verdict": "UNCERTAIN", "detail": "Pending manual operator verification"},
-                "suffocation_warning": {"verdict": "UNCERTAIN", "detail": "Pending manual operator verification"},
-                "fnsku_label_placement": {"verdict": "UNCERTAIN", "detail": "Pending manual operator verification"},
-                "original_barcode_covered": {"verdict": "UNCERTAIN", "detail": "Pending manual operator verification"},
-                "expiry_date": {"verdict": "UNCERTAIN", "detail": "Pending manual operator verification"},
-                "handling_marks": {"verdict": "UNCERTAIN", "detail": "Pending manual operator verification"}
-            }
+                "polybag_present_sealed": {"verdict": "UNCERTAIN", "applicable": True, "detail": "Pending manual operator verification due to pipeline fail-open."},
+                "suffocation_warning": {"verdict": "UNCERTAIN", "applicable": True, "detail": "Pending manual operator verification due to pipeline fail-open."},
+                "fnsku_label_placement": {"verdict": "UNCERTAIN", "applicable": True, "detail": "Pending manual operator verification due to pipeline fail-open."},
+                "original_barcode_covered": {"verdict": "UNCERTAIN", "applicable": True, "detail": "Pending manual operator verification due to pipeline fail-open."},
+                "expiry_date": {"verdict": "UNCERTAIN", "applicable": True, "detail": "Pending manual operator verification due to pipeline fail-open."},
+                "handling_marks": {"verdict": "UNCERTAIN", "applicable": True, "detail": "Pending manual operator verification due to pipeline fail-open."}
+            },
+            "evidence_regions": [],
+            "calibration": {
+                "is_calibrated": False,
+                "front_quality": {},
+                "back_quality": {},
+                "label_quality": {}
+            },
+            "performance": {
+                "latency_ms": 1.0,
+                "estimated_compute_cost_usd": 0.00005,
+                "target_max_check_cost_usd": float(wo.get("target_max_check_cost_usd", 0.075)),
+                "cost_within_economics": True
+            },
+            "captured_at": wo.get("captured_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())),
+            "operator_id": wo.get("operator_id", "op_failopen")
         }
         return record
+

@@ -34,10 +34,20 @@ class PrepManagerAgent:
             try:
                 sess_opts = ort.SessionOptions()
                 sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-                self.onnx_session = ort.InferenceSession(onnx_model_path, sess_opts, providers=["CPUExecutionProvider"])
+                # Prioritize hardware acceleration: DirectML (NVIDIA RTX 4060) / CUDA -> CPU fallback
+                available_providers = ort.get_available_providers()
+                preferred_providers = []
+                if "DmlExecutionProvider" in available_providers:
+                    preferred_providers.append("DmlExecutionProvider")
+                if "CUDAExecutionProvider" in available_providers:
+                    preferred_providers.append("CUDAExecutionProvider")
+                preferred_providers.append("CPUExecutionProvider")
+                
+                self.onnx_session = ort.InferenceSession(onnx_model_path, sess_opts, providers=preferred_providers)
                 self.input_name = self.onnx_session.get_inputs()[0].name
                 self.output_name = self.onnx_session.get_outputs()[0].name
-                print(f"[PrepManagerAgent] Loaded ONNX detector: {onnx_model_path}")
+                active = self.onnx_session.get_providers()
+                print(f"[PrepManagerAgent] Loaded ONNX detector: {onnx_model_path} with active provider(s): {active}")
             except Exception as e:
                 print(f"[PrepManagerAgent] Warning: Could not initialize ONNX session ({e}), using OpenCV fallback")
         else:
@@ -117,14 +127,14 @@ class PrepManagerAgent:
             
             # 5. Format standardized evidence record
             record = {
-                "record_id": f"PRP-{unit_id.replace('UNIT-', '')}",
+                "record_id": f"PRP-{unit_id.replace('UNIT-', '').zfill(4)}",
                 "unit_id": unit_id,
                 "org_id": org_id,
-                "work_order_id": work_order.get("work_order_id", "WO-3000"),
-                "fba_shipment_id": work_order.get("fba_shipment_id", "FBA-CUBE-100"),
-                "sku": work_order.get("sku", "UNKNOWN-SKU"),
-                "asin": work_order.get("asin", "UNKNOWN-ASIN"),
-                "fnsku": work_order.get("fnsku", "UNKNOWN-FNSKU"),
+                "work_order_id": str(work_order.get("work_order_id", "WO-3000")),
+                "fba_shipment_id": str(work_order.get("fba_shipment_id", "FBA-CUBE-100")),
+                "sku": str(work_order.get("sku", "UNKNOWN-SKU")),
+                "asin": str(work_order.get("asin", "UNKNOWN-ASIN")),
+                "fnsku": str(work_order.get("fnsku", "UNKNOWN-FNSKU")),
                 "overall_status": verdict_result["overall_status"],
                 "issue_explanation": verdict_result["explanation"],
                 "checks": verdict_result["checks"],
@@ -133,7 +143,7 @@ class PrepManagerAgent:
                 "evidence_regions": verdict_result["evidence_regions"],
                 "evidence_vector": evidence_vector,
                 "calibration": {
-                    "is_calibrated": f_calib and b_calib and l_calib,
+                    "is_calibrated": bool(f_calib and b_calib and l_calib),
                     "front_quality": f_metrics,
                     "back_quality": b_metrics,
                     "label_quality": l_metrics
@@ -145,18 +155,18 @@ class PrepManagerAgent:
                     "cost_within_economics": unit_cost_usd <= float(work_order.get("target_max_check_cost_usd", 0.075))
                 },
                 "workflow_state": "completed" if verdict_result["overall_status"] != "UNCERTAIN" else "pending_review",
-                "operator_id": work_order.get("operator_id", "op_agent"),
-                "captured_at": work_order.get("captured_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+                "operator_id": str(work_order.get("operator_id", "op_agent")),
+                "captured_at": str(work_order.get("captured_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())))
             }
             return record
             
         except Exception as e:
             # Rule 3: Fail Open
-            record = self.calibrator.execute_fail_open(unit_id, str(e), work_order)
-            record["org_id"] = org_id
+            record = self.calibrator.execute_fail_open(unit_id, str(e), work_order, org_id=org_id)
             record["performance"] = {
                 "latency_ms": round((time.perf_counter() - start_time) * 1000.0, 2),
                 "estimated_compute_cost_usd": 0.00005,
+                "target_max_check_cost_usd": float(work_order.get("target_max_check_cost_usd", 0.075)) if work_order else 0.075,
                 "cost_within_economics": True
             }
             return record

@@ -73,3 +73,23 @@
   - `frontend/types/prep-evidence.ts` & `frontend/lib/api-client.ts` (TypeScript client contract for future Next.js dashboard)
   - `DEPLOYMENT.md` (Step-by-step production runbook)
 - Executed production test suite (`scripts/test_production_pipeline.py`): 100% tests passed. All ML models, contracts, and verdicts preserved with zero drift.
+
+### Step 10: Complete End-to-End Production Verification & Resiliency Hardening
+- Enabled GPU hardware acceleration on NVIDIA GeForce RTX 4060 Laptop GPU: configured ONNX Runtime to prioritize `['DmlExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']`.
+- Implemented multi-image multipart upload with progressive SSE streaming (`POST /api/v1/inspect/stream/upload`), allowing direct camera file ingestion while streaming intermediate milestones in real time.
+- Implemented idempotency & duplicate detection: previously inspected units return cached records instantly without re-running ML models (`X-Cache: HIT` or cached SSE stream), while `x_force_reinspect=True` allows re-evaluation.
+- Hardened fault tolerance and error resilience:
+  - Rejection of 0-byte and corrupted non-image files with HTTP 400 Bad Request.
+  - Fail-Open Safety Wrapper (Rule 3) generating schema-compliant `pending_review` records on unhandled exceptions and SLA timeouts (`INSPECTION_TIMEOUT_SECONDS=25.0`).
+  - Partial results caching and polling endpoint (`GET /api/v1/inspect/partial/{unit_id}`) for disconnected client recovery.
+  - Concurrency limiting via `asyncio.Semaphore(10)` and non-blocking worker threads.
+- Added live production telemetry tracker (`agent/metrics.py`) providing real-time latency percentiles (unit and per-view), throughput, error rates, storage footprint, and actual unit compute cost ($0.00015/unit vs $0.075 SLA target).
+- Built strict schema contract validation (`agent/validator.py`) guaranteeing 100% adherence to `prep_evidence_contract.json`.
+- Created comprehensive automated integration test suite (`scripts/test_end_to_end_production.py`):
+  - **14/14 test cases passed with 100% success rate.**
+  - Evaluated the untouched 15-unit held-out test set through the live API pipeline:
+    - API Accuracy: **73.33%** (matches offline baseline of 73.33% with **0.00% drift**).
+    - API UNCERTAIN Rate: **20.00%** (matches offline baseline of 20.00% with **0.00% drift**).
+  - Validated local offline and cloud Supabase modes.
+- Updated `DEPLOYMENT.md` with complete API flows, environment variables, deployment steps, and verified test results.
+

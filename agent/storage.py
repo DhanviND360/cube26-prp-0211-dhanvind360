@@ -26,6 +26,11 @@ class BaseStorageProvider(ABC):
         """Loads and returns an OpenCV image matrix from a URI/path, enforcing tenant isolation."""
         pass
 
+    @abstractmethod
+    def get_storage_stats(self, org_id: Optional[str] = None) -> dict:
+        """Returns storage metrics: total bytes, image count, and formatted size."""
+        pass
+
 class LocalStorageProvider(BaseStorageProvider):
     def __init__(self, base_dir: str = "data/uploads"):
         self.base_dir = base_dir
@@ -62,6 +67,23 @@ class LocalStorageProvider(BaseStorageProvider):
         if os.path.exists(normalized):
             return cv2.imread(normalized)
         return None
+
+    def get_storage_stats(self, org_id: Optional[str] = None) -> dict:
+        target_dir = os.path.join(self.base_dir, org_id) if org_id else self.base_dir
+        total_bytes = 0
+        file_count = 0
+        if os.path.exists(target_dir):
+            for root, _, files in os.walk(target_dir):
+                for f in files:
+                    fp = os.path.join(root, f)
+                    if os.path.isfile(fp):
+                        total_bytes += os.path.getsize(fp)
+                        file_count += 1
+        return {
+            "total_bytes": total_bytes,
+            "total_images": file_count,
+            "size_mb": round(total_bytes / (1024 * 1024), 3)
+        }
 
 class SupabaseStorageProvider(BaseStorageProvider):
     def __init__(self, supabase_url: str, supabase_key: str, bucket_name: str = "prep-evidence-images"):
@@ -111,6 +133,21 @@ class SupabaseStorageProvider(BaseStorageProvider):
         except Exception as e:
             print(f"[SupabaseStorageProvider] Download error: {e}")
         return None
+
+    def get_storage_stats(self, org_id: Optional[str] = None) -> dict:
+        if self.client is None:
+            return self.fallback.get_storage_stats(org_id)
+        try:
+            folder = org_id if org_id else ""
+            res = self.client.storage.from_(self.bucket_name).list(folder)
+            total_bytes = sum(item.get("metadata", {}).get("size", 0) for item in res if isinstance(item, dict))
+            return {
+                "total_bytes": total_bytes,
+                "total_images": len(res),
+                "size_mb": round(total_bytes / (1024 * 1024), 3)
+            }
+        except Exception:
+            return self.fallback.get_storage_stats(org_id)
 
 def get_storage_provider() -> BaseStorageProvider:
     """Factory creating configured storage provider without vendor lock-in."""
