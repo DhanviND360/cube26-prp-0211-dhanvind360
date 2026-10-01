@@ -1,0 +1,26 @@
+# Render Blueprint specification for CUBE Prep Manager Backend
+services:
+  - type: web
+    name: cube-prep-manager-api
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: ENV
+        value: production
+      - key: PORT
+        value: 8000
+      - key: CORS_ORIGINS
+        value: '["https://*.vercel.app","http://localhost:3000"]'
+      - key: STORAGE_BACKEND
+        value: local
+      - key: DATABASE_BACKEND
+        value: local
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: DEFAULT_ORG_ID
+        value: org_demo_alpha

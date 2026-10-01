@@ -58,3 +58,18 @@
   - Blocked cross-tenant key-guessing attacks with 0 data leaks.
 - Generated cross-pod contract `prep_evidence_contract.json` and exported all 100 unit JSON/CSV records.
 - Built interactive Streamlit application (`app.py`) with visual evidence overlays, override audit logs, and tenancy switching.
+
+### Step 9: Production Architecture & Real-Time Streaming Preparation
+- Decoupled cloud architecture: Vercel (Next.js frontend) + Render/Fly.io (FastAPI ML backend) + Supabase (PostgreSQL with RLS, S3-compatible storage, Realtime).
+- Created cloud storage abstraction (`agent/storage.py`) supporting local filesystem and Supabase Storage without vendor lock-in.
+- Created database abstraction (`agent/db.py`) supporting local SQLite/JSON and Supabase PostgreSQL with RLS policies.
+- Implemented real-time progressive streaming pipeline (`agent/pipeline.py`) emitting Server-Sent Events (SSE) as each perspective completes analysis (`front_completed` -> `back_completed` -> `label_completed` -> `inspection_completed`).
+- Built production deployment assets:
+  - `Dockerfile` (multi-stage Python 3.11 with OpenCV & ZBar)
+  - `render.yaml` (Render Blueprint for one-click backend deploy)
+  - `fly.toml` (Fly.io container config)
+  - `vercel.json` (Vercel edge rewrites & security headers)
+  - `supabase/migrations/20261001000000_init_prep_manager.sql` (PostgreSQL tables, RLS policies, and storage bucket security)
+  - `frontend/types/prep-evidence.ts` & `frontend/lib/api-client.ts` (TypeScript client contract for future Next.js dashboard)
+  - `DEPLOYMENT.md` (Step-by-step production runbook)
+- Executed production test suite (`scripts/test_production_pipeline.py`): 100% tests passed. All ML models, contracts, and verdicts preserved with zero drift.

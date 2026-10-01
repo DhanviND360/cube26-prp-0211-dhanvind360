@@ -10,3 +10,5 @@ venv/
 *.pt
 models/exp_*/
 !models/best_detector.onnx
+*.db
+data/uploads/

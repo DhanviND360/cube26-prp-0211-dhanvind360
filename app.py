@@ -141,15 +141,15 @@ else:
 with c1:
     st.caption("View 1: Front (Packaging & Placement)")
     if f_disp_rgb is not None:
-        st.image(f_disp_rgb, use_container_width=True)
+        st.image(f_disp_rgb, width="stretch")
 with c2:
     st.caption("View 2: Back (Cover & Marks)")
     if back_img is not None:
-        st.image(cv2.cvtColor(back_img, cv2.COLOR_BGR2RGB), use_container_width=True)
+        st.image(cv2.cvtColor(back_img, cv2.COLOR_BGR2RGB), width="stretch")
 with c3:
     st.caption("View 3: Label Close-Up (FNSKU Barcode & Text)")
     if label_img is not None:
-        st.image(cv2.cvtColor(label_img, cv2.COLOR_BGR2RGB), use_container_width=True)
+        st.image(cv2.cvtColor(label_img, cv2.COLOR_BGR2RGB), width="stretch")
 
 st.markdown("---")
 

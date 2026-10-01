@@ -1,0 +1,14 @@
+.git
+.github
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv
+venv
+models/exp_*
+*.pt
+.DS_Store
+reports/audit_overrides.jsonl
+frontend/
+node_modules

@@ -152,3 +152,67 @@ When Recovery Manager encounters an Amazon defect chargeback on `UNIT-0003`, it 
 3. `failure_reasons`: `["FNSKU label overlaps a package seam."]`
 4. `evidence_regions`: Pixel bounding boxes with seam overlap IoU = 22.4%.
 Recovery Manager compares this against the prep work order and inbound carrier logs to determine whether the defect existed at departure or occurred during Amazon receiving handling.
+
+---
+
+## 6. Production Cloud Architecture & Streaming Dataflow
+
+To ensure seamless production deployment without changing the core ML behavior or evidence contract, the system implements a modern, decoupled cloud architecture:
+
+```text
+ ┌────────────────────────────────────────────────────────┐
+ │                   VERCEL EDGE CLUSTER                  │
+ │           Next.js 14+ Frontend (SSR & Static)          │
+ │   - Operator Inspection Dashboard                      │
+ │   - Realtime SSE Streaming Listener                    │
+ │   - Multi-Tenant Workspace Selector                    │
+ └───────────────────────────┬────────────────────────────┘
+                             │
+                             ▼ HTTPS / Server-Sent Events (SSE)
+ ┌────────────────────────────────────────────────────────┐
+ │           FASTAPI ML INFERENCE BACKEND (CONTAINER)     │
+ │        Hosted on Render / Fly.io / Railway / Cloud Run │
+ │   - 640px ONNX Nano Detector (31ms inference)          │
+ │   - Deterministic OpenCV Spatial Geometry Engine       │
+ │   - Authoritative Amazon FBA Rule Engine               │
+ │   - Tenancy Isolation & Calibration Gating (Rule 1 & 4)│
+ └─────────────┬────────────────────────────┬─────────────┘
+               │                            │
+               ▼ PostgreSQL Queries (RLS)   ▼ S3-Compatible Uploads
+ ┌────────────────────────────────────────────────────────┐
+ │                    SUPABASE CLOUD                      │
+ │   - Managed PostgreSQL with Row-Level Security (RLS)   │
+ │   - Storage Bucket: prep-evidence-images (Tenant paths)│
+ │   - Realtime Broadcast & Postgres Changes              │
+ └────────────────────────────────────────────────────────┘
+```
+
+### 6.1. Progressive Per-Image Processing Flow
+```text
+[Client / Conveyor Trigger]
+       │ (Upload front, back, label images)
+       ▼
+[FastAPI /api/v1/inspect/stream]
+       │
+       ├──▶ Event 1: job_started (progress: 10%)
+       │    Optical calibration & stream validation
+       │
+       ├──▶ Event 2: front_completed (progress: 40%)
+       │    Front view processed: package bounds, seam alignment, polybag
+       │
+       ├──▶ Event 3: back_completed (progress: 70%)
+       │    Back view processed: barcode coverage & handling marks
+       │
+       ├──▶ Event 4: label_completed (progress: 90%)
+       │    Label macro view: FNSKU OCR, barcode scanning, curvature
+       │
+       └──▶ Event 5: inspection_completed (progress: 100%)
+            Authoritative Rule Engine evaluates all evidence;
+            Record persisted to Supabase / SQLite with tenant isolation;
+            Emits final compliance verdict (PASS / FAIL / UNCERTAIN).
+```
+
+### 6.2. Cloud-Agnostic Abstractions
+- **Storage Provider (`agent/storage.py`):** Supports `LocalStorageProvider` for offline development and `SupabaseStorageProvider` for cloud object storage without vendor lock-in.
+- **Database Provider (`agent/db.py`):** Supports SQLite for local execution and Supabase PostgreSQL with RLS.
+- **Client Library (`frontend/lib/api-client.ts`):** Universal TypeScript API client compatible with any modern web framework.
