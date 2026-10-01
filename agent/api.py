@@ -25,7 +25,8 @@ from fastapi import (
     FastAPI, Header, HTTPException, Query, UploadFile, File, Form, Depends, Request, status
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from agent.config import settings
@@ -50,8 +51,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount dataset images for frontend visualization
+if os.path.exists("cube_prep_dataset/images"):
+    app.mount("/images", StaticFiles(directory="cube_prep_dataset/images"), name="images")
+
+# Mount uploaded images
+if os.path.exists("data/uploads"):
+    app.mount("/uploads", StaticFiles(directory="data/uploads"), name="uploads")
+
+# Mount frontend assets
+if os.path.exists("frontend/assets"):
+    app.mount("/assets", StaticFiles(directory="frontend/assets"), name="assets")
+
 storage = get_storage_provider()
 db = get_database_provider()
+
+from fastapi.exceptions import RequestValidationError
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    clean_errors = []
+    for err in exc.errors():
+        err_copy = dict(err)
+        if isinstance(err_copy.get("input"), (bytes, bytearray)):
+            err_copy["input"] = f"<binary {len(err_copy['input'])} bytes>"
+        clean_errors.append(err_copy)
+    print("[FastAPI RequestValidationError]", clean_errors)
+    return JSONResponse(status_code=422, content={"detail": clean_errors})
 
 # Concurrency throttling semaphore
 concurrency_limiter = asyncio.Semaphore(settings.MAX_CONCURRENT_INSPECTIONS)
@@ -621,3 +646,145 @@ def get_metrics():
             "evaluation_summary": eval_data
         }
     }
+
+# --- DATASET PRESETS FOR 1-CLICK TESTING ---
+@app.get("/api/v1/dataset/samples", tags=["Analytics"])
+def get_dataset_samples():
+    """Returns curated preset demo units from dataset across PASS, FAIL, UNCERTAIN."""
+    samples = [
+        {
+            "unit_id": "UNIT-POLY-0001",
+            "org_id": "org_demo_alpha",
+            "expected_verdict": "PASS",
+            "scenario": "correct_preparation",
+            "product_category": "toys",
+            "sku": "SKU-TOY-POLY",
+            "asin": "B0POLY001",
+            "fnsku": "X001POLYBAG",
+            "wo_polybag": True,
+            "wo_suffocation_warning": True,
+            "wo_expiry_date": False,
+            "wo_handling_marks": "liquid",
+            "prep_price_usd": 1.10,
+            "photo_front": "/images/UNIT-POLY-0001_front.jpg",
+            "photo_back": "/images/UNIT-POLY-0001_back.jpg",
+            "photo_label": "/images/UNIT-POLY-0001_label.jpg",
+            "description": "Sealed Polybag Toy: Verified heat seal, warning & flat FNSKU (PASS)"
+        },
+        {
+            "unit_id": "UNIT-POLY-0002",
+            "org_id": "org_demo_alpha",
+            "expected_verdict": "PASS",
+            "scenario": "correct_preparation",
+            "product_category": "apparel",
+            "sku": "SKU-TEE-POLY",
+            "asin": "B0POLY002",
+            "fnsku": "X002APPAREL",
+            "wo_polybag": True,
+            "wo_suffocation_warning": True,
+            "wo_expiry_date": False,
+            "wo_handling_marks": "",
+            "prep_price_usd": 0.95,
+            "photo_front": "/images/UNIT-POLY-0002_front.jpg",
+            "photo_back": "/images/UNIT-POLY-0002_back.jpg",
+            "photo_label": "/images/UNIT-POLY-0002_label.jpg",
+            "description": "Sealed Polybag Apparel: Transparent film, warning & covered barcode (PASS)"
+        },
+        {
+            "unit_id": "UNIT-POLY-OPEN",
+            "org_id": "org_demo_alpha",
+            "expected_verdict": "FAIL",
+            "scenario": "polybag_not_sealed",
+            "product_category": "kitchen",
+            "sku": "SKU-TOWEL-OPEN",
+            "asin": "B0POLY004",
+            "fnsku": "X004OPENSEAL",
+            "wo_polybag": True,
+            "wo_suffocation_warning": True,
+            "wo_expiry_date": False,
+            "wo_handling_marks": "",
+            "prep_price_usd": 0.75,
+            "photo_front": "/images/UNIT-POLY-OPEN_front.jpg",
+            "photo_back": "/images/UNIT-POLY-OPEN_back.jpg",
+            "photo_label": "/images/UNIT-POLY-OPEN_label.jpg",
+            "description": "Defect: Polybag unsealed / open closure (FAIL)"
+        },
+        {
+            "unit_id": "UNIT-POLY-NOWARN",
+            "org_id": "org_demo_alpha",
+            "expected_verdict": "FAIL",
+            "scenario": "missing_warning",
+            "product_category": "toys",
+            "sku": "SKU-PLUSH-NOWARN",
+            "asin": "B0POLY005",
+            "fnsku": "X005NOWARN",
+            "wo_polybag": True,
+            "wo_suffocation_warning": True,
+            "wo_expiry_date": False,
+            "wo_handling_marks": "",
+            "prep_price_usd": 0.75,
+            "photo_front": "/images/UNIT-POLY-NOWARN_front.jpg",
+            "photo_back": "/images/UNIT-POLY-NOWARN_back.jpg",
+            "photo_label": "/images/UNIT-POLY-NOWARN_label.jpg",
+            "description": "Defect: Polybag missing required suffocation warning (FAIL)"
+        }
+    ]
+
+    csv_path = "cube_prep_dataset/cube_prep_dataset.csv"
+    if os.path.exists(csv_path):
+        import pandas as pd
+        df = pd.read_csv(csv_path)
+        selected_uids = [
+            "UNIT-0002",  # PASS: Clean standard toy prep with polybag
+            "UNIT-0001",  # PASS: Clean standard electronics prep (no polybag)
+            "UNIT-0003",  # FAIL: FNSKU placed on center seam
+            "UNIT-0008",  # FAIL: Original barcode visible (not covered)
+            "UNIT-0004",  # UNCERTAIN: Ambiguous FNSKU scan
+        ]
+        for uid in selected_uids:
+            rows = df[df["unit_id"] == uid]
+            if not rows.empty:
+                r = rows.iloc[0].to_dict()
+                samples.append({
+                    "unit_id": r["unit_id"],
+                    "org_id": r["org_id"],
+                    "expected_verdict": r["expected_overall_status"],
+                    "scenario": r.get("scenario", "standard"),
+                    "product_category": r.get("product_category", "general"),
+                    "sku": r.get("sku", "SKU-SAMPLE"),
+                    "asin": r.get("asin", "B0DUMMY"),
+                    "fnsku": r.get("fnsku", "X00CUBE"),
+                    "wo_polybag": bool(r.get("wo_polybag", False)),
+                    "wo_suffocation_warning": bool(r.get("wo_suffocation_warning", False)),
+                    "wo_expiry_date": bool(r.get("wo_expiry_date", False)),
+                    "wo_handling_marks": str(r.get("wo_handling_marks", "")) if pd.notna(r.get("wo_handling_marks")) else "",
+                    "prep_price_usd": float(r.get("prep_price_usd", 0.75)),
+                    "photo_front": f"/images/{uid}_front.jpg",
+                    "photo_back": f"/images/{uid}_back.jpg",
+                    "photo_label": f"/images/{uid}_label.jpg",
+                    "description": r.get("expected_issue_explanation", "")
+                })
+    return {"samples": samples}
+
+# --- FRONTEND ROUTING ---
+@app.get("/", include_in_schema=False)
+def serve_index():
+    index_path = "frontend/index.html"
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return {"message": "CUBE Prep Manager API is active. Open frontend or /docs for API documentation."}
+
+@app.get("/style.css", include_in_schema=False)
+def serve_style():
+    css_path = "frontend/style.css"
+    if os.path.exists(css_path):
+        return FileResponse(css_path, media_type="text/css")
+    raise HTTPException(status_code=404, detail="style.css not found")
+
+@app.get("/app.js", include_in_schema=False)
+def serve_app_js():
+    js_path = "frontend/app.js"
+    if os.path.exists(js_path):
+        return FileResponse(js_path, media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="app.js not found")
+

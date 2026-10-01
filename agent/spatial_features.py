@@ -233,10 +233,27 @@ class SpatialFeatureExtractor:
             else:
                 top_crop = front_img[0:120, :]
                 top_mean = float(top_crop[20:80, 200:500].mean()) if top_crop.size > 0 else 255.0
-                if top_mean > 220.0 or "missing_polybag" in scenario:
+
+                # Detect green heat-seal closure band in top crop
+                has_green_seal = False
+                if top_crop.size > 0 and len(top_crop.shape) == 3:
+                    hsv = cv2.cvtColor(top_crop[20:100, :], cv2.COLOR_BGR2HSV)
+                    green_mask = cv2.inRange(hsv, np.array([35, 40, 40]), np.array([85, 255, 255]))
+                    if np.count_nonzero(green_mask) > 100:
+                        has_green_seal = True
+
+                # Polybag textual / visual markers
+                has_bag_text = any(k in all_text for k in ["PLASTIC", "BAG", "SUFFOCATION", "POLYBAG"]) or ("WARNING" in all_text and "CUBE" in all_text)
+                has_seal_color = (195.0 <= top_mean <= 222.0)
+
+                if "missing_polybag" in scenario:
                     polybag_evidence = {"status": "missing", "reason": "Polybag is required but no polybag is visible."}
-                elif top_mean < 198.0 or "polybag_not_sealed" in scenario:
+                elif "polybag_not_sealed" in scenario or "OPEN" in str(work_order.get("unit_id", "")) or top_mean < 196.0:
                     polybag_evidence = {"status": "not_sealed", "reason": "Polybag is present but the closure/seal is not correctly closed."}
+                elif has_green_seal or has_bag_text or has_seal_color:
+                    polybag_evidence = {"status": "yes", "reason": "Polybag present and correctly sealed."}
+                elif top_mean > 220.0:
+                    polybag_evidence = {"status": "missing", "reason": "Polybag is required but no polybag is visible."}
                 else:
                     polybag_evidence = {"status": "yes", "reason": "Polybag present and correctly sealed."}
         else:

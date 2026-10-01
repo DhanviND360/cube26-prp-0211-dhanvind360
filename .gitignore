@@ -13,4 +13,6 @@ models/exp_*/
 *.db
 data/uploads/
 data/test_uploads/
+.next/
+frontend/.next/
 
