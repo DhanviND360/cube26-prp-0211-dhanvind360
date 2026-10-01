@@ -7,3 +7,6 @@ __pycache__/
 .venv/
 venv/
 .DS_Store
+*.pt
+models/exp_*/
+!models/best_detector.onnx

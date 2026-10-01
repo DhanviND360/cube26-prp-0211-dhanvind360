@@ -1,0 +1,154 @@
+{
+  "record_id": "PRP-0030",
+  "unit_id": "UNIT-0030",
+  "org_id": "org_demo_bravo",
+  "work_order_id": "WO-3005",
+  "fba_shipment_id": "FBA-CUBE-102",
+  "sku": "SKU-PROT-1KG",
+  "asin": "B0DUMMY357",
+  "fnsku": "X00CUBE0030",
+  "overall_status": "FAIL",
+  "issue_explanation": "Expiry information is not legible after wrapping. One or more required handling marks are missing.",
+  "checks": {
+    "polybag_present_sealed": {
+      "verdict": "PASS",
+      "applicable": false,
+      "detail": "Polybag not required by work order."
+    },
+    "suffocation_warning": {
+      "verdict": "PASS",
+      "applicable": false,
+      "detail": "Suffocation warning not required by work order."
+    },
+    "fnsku_label_placement": {
+      "verdict": "PASS",
+      "applicable": true,
+      "detail": "FNSKU label is flat, properly centered away from edges, curves, and seams."
+    },
+    "original_barcode_covered": {
+      "verdict": "PASS",
+      "applicable": true,
+      "detail": "Original manufacturer barcode is fully covered or not exposed."
+    },
+    "expiry_date": {
+      "verdict": "FAIL",
+      "applicable": true,
+      "detail": "Expiry information is not legible after wrapping."
+    },
+    "handling_marks": {
+      "verdict": "FAIL",
+      "applicable": true,
+      "detail": "One or more required handling marks are missing."
+    }
+  },
+  "failure_reasons": [
+    "Expiry information is not legible after wrapping.",
+    "One or more required handling marks are missing."
+  ],
+  "uncertain_reasons": [],
+  "evidence_regions": [
+    {
+      "view": "front",
+      "label": "fnsku_label",
+      "bbox": [
+        425,
+        196,
+        160,
+        115
+      ],
+      "measurement": {
+        "edge_distance_px": 38,
+        "seam_overlap_iou": 0.0,
+        "curvature": 0.2903
+      }
+    }
+  ],
+  "evidence_vector": {
+    "image_quality": {
+      "front_blur": 1456.8,
+      "back_blur": 611.19,
+      "label_blur": 1531.96,
+      "min_blur": 611.19,
+      "is_ambiguous": false
+    },
+    "package_bounds": [
+      148,
+      75,
+      475,
+      385
+    ],
+    "fnsku": {
+      "detected": true,
+      "placement": "flat",
+      "reason": "FNSKU label is flat, centered away from edges, curves, and seams.",
+      "box": [
+        425,
+        196,
+        160,
+        115
+      ],
+      "edge_distance_px": 38,
+      "seam_overlap_iou": 0.0,
+      "curvature_metric": 0.2903
+    },
+    "polybag": {
+      "status": "not_required",
+      "reason": "Polybag not required by work order"
+    },
+    "suffocation_warning": {
+      "status": "not_required",
+      "reason": "Suffocation warning not required"
+    },
+    "original_barcode": {
+      "status": "yes",
+      "reason": "Original manufacturer barcode is properly covered or absent."
+    },
+    "expiry_date": {
+      "status": "illegible_after_wrap",
+      "reason": "Expiry information is not legible after wrapping."
+    },
+    "handling_marks": {
+      "status": "some_missing",
+      "reason": "Required handling marks missing: this_way_up"
+    }
+  },
+  "calibration": {
+    "is_calibrated": true,
+    "front_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 1456.8,
+      "glare_ratio": 0.0454,
+      "mean_brightness": 214.56
+    },
+    "back_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 611.19,
+      "glare_ratio": 0.0005,
+      "mean_brightness": 212.32
+    },
+    "label_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 1531.96,
+      "glare_ratio": 0.1143,
+      "mean_brightness": 218.17
+    }
+  },
+  "performance": {
+    "latency_ms": 3175.34,
+    "estimated_compute_cost_usd": 0.00015,
+    "target_max_check_cost_usd": 0.075,
+    "cost_within_economics": true
+  },
+  "workflow_state": "completed",
+  "operator_id": "op_fatima",
+  "captured_at": "2026-09-20T16:30:00Z"
+}

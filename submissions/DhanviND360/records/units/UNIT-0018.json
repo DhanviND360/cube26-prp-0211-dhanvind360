@@ -1,0 +1,153 @@
+{
+  "record_id": "PRP-0018",
+  "unit_id": "UNIT-0018",
+  "org_id": "org_demo_bravo",
+  "work_order_id": "WO-3003",
+  "fba_shipment_id": "FBA-CUBE-101",
+  "sku": "SKU-CANDLE-3",
+  "asin": "B0DUMMY964",
+  "fnsku": "X00CUBE0018",
+  "overall_status": "FAIL",
+  "issue_explanation": "Polybag is required but no polybag is visible.",
+  "checks": {
+    "polybag_present_sealed": {
+      "verdict": "FAIL",
+      "applicable": true,
+      "detail": "Polybag is required by work order but no polybag is visible."
+    },
+    "suffocation_warning": {
+      "verdict": "PASS",
+      "applicable": true,
+      "detail": "Suffocation warning is present, unobstructed and fully legible."
+    },
+    "fnsku_label_placement": {
+      "verdict": "PASS",
+      "applicable": true,
+      "detail": "FNSKU label is flat, properly centered away from edges, curves, and seams."
+    },
+    "original_barcode_covered": {
+      "verdict": "PASS",
+      "applicable": true,
+      "detail": "Original manufacturer barcode is fully covered or not exposed."
+    },
+    "expiry_date": {
+      "verdict": "PASS",
+      "applicable": false,
+      "detail": "Expiry date verification not required by work order."
+    },
+    "handling_marks": {
+      "verdict": "PASS",
+      "applicable": false,
+      "detail": "Handling marks not required by work order."
+    }
+  },
+  "failure_reasons": [
+    "Polybag is required but no polybag is visible."
+  ],
+  "uncertain_reasons": [],
+  "evidence_regions": [
+    {
+      "view": "front",
+      "label": "fnsku_label",
+      "bbox": [
+        425,
+        196,
+        160,
+        115
+      ],
+      "measurement": {
+        "edge_distance_px": 38,
+        "seam_overlap_iou": 0.0,
+        "curvature": 0.2903
+      }
+    }
+  ],
+  "evidence_vector": {
+    "image_quality": {
+      "front_blur": 1417.34,
+      "back_blur": 607.98,
+      "label_blur": 1398.53,
+      "min_blur": 607.98,
+      "is_ambiguous": false
+    },
+    "package_bounds": [
+      148,
+      75,
+      475,
+      385
+    ],
+    "fnsku": {
+      "detected": true,
+      "placement": "flat",
+      "reason": "FNSKU label is flat, centered away from edges, curves, and seams.",
+      "box": [
+        425,
+        196,
+        160,
+        115
+      ],
+      "edge_distance_px": 38,
+      "seam_overlap_iou": 0.0,
+      "curvature_metric": 0.2903
+    },
+    "polybag": {
+      "status": "missing",
+      "reason": "Polybag is required but no polybag is visible."
+    },
+    "suffocation_warning": {
+      "status": "legible",
+      "reason": "Suffocation warning is present, unobstructed and legible."
+    },
+    "original_barcode": {
+      "status": "yes",
+      "reason": "Original manufacturer barcode is properly covered or absent."
+    },
+    "expiry_date": {
+      "status": "not_required",
+      "reason": "Expiry date verification not required"
+    },
+    "handling_marks": {
+      "status": "not_required",
+      "reason": "Handling marks not required"
+    }
+  },
+  "calibration": {
+    "is_calibrated": true,
+    "front_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 1417.34,
+      "glare_ratio": 0.0015,
+      "mean_brightness": 192.16
+    },
+    "back_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 607.98,
+      "glare_ratio": 0.0005,
+      "mean_brightness": 197.38
+    },
+    "label_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 1398.53,
+      "glare_ratio": 0.1142,
+      "mean_brightness": 207.67
+    }
+  },
+  "performance": {
+    "latency_ms": 3263.15,
+    "estimated_compute_cost_usd": 0.00015,
+    "target_max_check_cost_usd": 0.075,
+    "cost_within_economics": true
+  },
+  "workflow_state": "completed",
+  "operator_id": "op_fatima",
+  "captured_at": "2026-09-20T13:06:00Z"
+}

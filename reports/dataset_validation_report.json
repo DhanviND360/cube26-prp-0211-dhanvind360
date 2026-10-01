@@ -1,0 +1,42 @@
+{
+  "total_units": 100,
+  "total_images": 300,
+  "splits": {
+    "train": 70,
+    "validation": 15,
+    "heldout": 15
+  },
+  "unit_leakage_detected": false,
+  "image_leakage_detected": false,
+  "status_distribution": {
+    "FAIL": 63,
+    "PASS": 20,
+    "UNCERTAIN": 17
+  },
+  "scenario_counts": {
+    "correct_preparation": 20,
+    "fnsku_on_seam": 6,
+    "multi_failure": 6,
+    "original_barcode_visible": 5,
+    "handling_mark_missing": 5,
+    "polybag_not_sealed": 5,
+    "missing_polybag": 5,
+    "fnsku_on_edge": 5,
+    "fnsku_on_curve": 5,
+    "missing_warning": 5,
+    "obscured_warning": 5,
+    "ambiguous_polybag": 4,
+    "expiry_obscured": 4,
+    "fnsku_missing": 4,
+    "ambiguous_fnsku": 3,
+    "ambiguous_warning": 3,
+    "expiry_illegible": 3,
+    "ambiguous_barcode": 3,
+    "ambiguous_expiry": 2,
+    "ambiguous_handling": 2
+  },
+  "organisations": {
+    "org_demo_alpha": 50,
+    "org_demo_bravo": 50
+  }
+}

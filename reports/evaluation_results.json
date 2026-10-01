@@ -1,0 +1,251 @@
+{
+  "timestamp": "2026-10-01T15:52:47Z",
+  "validation_evaluation": {
+    "split": "validation",
+    "unit_count": 15,
+    "accuracy": 0.8667,
+    "macro_f1": 0.803,
+    "uncertain_rate": 0.1333,
+    "latency_mean_ms": 3154.83,
+    "latency_p95_ms": 3537.24,
+    "confusion_matrix": {
+      "PASS": {
+        "PASS": 1,
+        "FAIL": 1,
+        "UNCERTAIN": 0
+      },
+      "FAIL": {
+        "PASS": 1,
+        "FAIL": 10,
+        "UNCERTAIN": 0
+      },
+      "UNCERTAIN": {
+        "PASS": 0,
+        "FAIL": 0,
+        "UNCERTAIN": 2
+      }
+    },
+    "per_class_metrics": {
+      "PASS": {
+        "TP": 1,
+        "FP": 1,
+        "FN": 1,
+        "precision": 0.5,
+        "recall": 0.5,
+        "f1": 0.5
+      },
+      "FAIL": {
+        "TP": 10,
+        "FP": 1,
+        "FN": 1,
+        "precision": 0.9091,
+        "recall": 0.9091,
+        "f1": 0.9091
+      },
+      "UNCERTAIN": {
+        "TP": 2,
+        "FP": 0,
+        "FN": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      }
+    },
+    "failure_modes": {
+      "polybag_not_sealed": {
+        "total": 3,
+        "correct": 3,
+        "uncertain": 0,
+        "fail": 3,
+        "pass": 0
+      },
+      "correct_preparation": {
+        "total": 2,
+        "correct": 1,
+        "uncertain": 0,
+        "fail": 1,
+        "pass": 1
+      },
+      "fnsku_on_seam": {
+        "total": 2,
+        "correct": 2,
+        "uncertain": 0,
+        "fail": 2,
+        "pass": 0
+      },
+      "ambiguous_handling": {
+        "total": 1,
+        "correct": 1,
+        "uncertain": 1,
+        "fail": 0,
+        "pass": 0
+      },
+      "missing_warning": {
+        "total": 2,
+        "correct": 2,
+        "uncertain": 0,
+        "fail": 2,
+        "pass": 0
+      },
+      "handling_mark_missing": {
+        "total": 1,
+        "correct": 0,
+        "uncertain": 0,
+        "fail": 0,
+        "pass": 1
+      },
+      "ambiguous_barcode": {
+        "total": 1,
+        "correct": 1,
+        "uncertain": 1,
+        "fail": 0,
+        "pass": 0
+      },
+      "fnsku_on_curve": {
+        "total": 1,
+        "correct": 1,
+        "uncertain": 0,
+        "fail": 1,
+        "pass": 0
+      },
+      "fnsku_missing": {
+        "total": 1,
+        "correct": 1,
+        "uncertain": 0,
+        "fail": 1,
+        "pass": 0
+      },
+      "missing_polybag": {
+        "total": 1,
+        "correct": 1,
+        "uncertain": 0,
+        "fail": 1,
+        "pass": 0
+      }
+    }
+  },
+  "heldout_test_evaluation": {
+    "split": "heldout",
+    "unit_count": 15,
+    "accuracy": 0.7333,
+    "macro_f1": 0.7037,
+    "uncertain_rate": 0.2,
+    "latency_mean_ms": 3233.59,
+    "latency_p95_ms": 3646.85,
+    "confusion_matrix": {
+      "PASS": {
+        "PASS": 1,
+        "FAIL": 3,
+        "UNCERTAIN": 0
+      },
+      "FAIL": {
+        "PASS": 1,
+        "FAIL": 7,
+        "UNCERTAIN": 0
+      },
+      "UNCERTAIN": {
+        "PASS": 0,
+        "FAIL": 0,
+        "UNCERTAIN": 3
+      }
+    },
+    "per_class_metrics": {
+      "PASS": {
+        "TP": 1,
+        "FP": 1,
+        "FN": 3,
+        "precision": 0.5,
+        "recall": 0.25,
+        "f1": 0.3333
+      },
+      "FAIL": {
+        "TP": 7,
+        "FP": 3,
+        "FN": 1,
+        "precision": 0.7,
+        "recall": 0.875,
+        "f1": 0.7778
+      },
+      "UNCERTAIN": {
+        "TP": 3,
+        "FP": 0,
+        "FN": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      }
+    },
+    "failure_modes": {
+      "correct_preparation": {
+        "total": 4,
+        "correct": 1,
+        "uncertain": 0,
+        "fail": 3,
+        "pass": 1
+      },
+      "ambiguous_fnsku": {
+        "total": 1,
+        "correct": 1,
+        "uncertain": 1,
+        "fail": 0,
+        "pass": 0
+      },
+      "missing_polybag": {
+        "total": 1,
+        "correct": 1,
+        "uncertain": 0,
+        "fail": 1,
+        "pass": 0
+      },
+      "handling_mark_missing": {
+        "total": 2,
+        "correct": 1,
+        "uncertain": 0,
+        "fail": 1,
+        "pass": 1
+      },
+      "fnsku_on_curve": {
+        "total": 2,
+        "correct": 2,
+        "uncertain": 0,
+        "fail": 2,
+        "pass": 0
+      },
+      "ambiguous_polybag": {
+        "total": 1,
+        "correct": 1,
+        "uncertain": 1,
+        "fail": 0,
+        "pass": 0
+      },
+      "ambiguous_expiry": {
+        "total": 1,
+        "correct": 1,
+        "uncertain": 1,
+        "fail": 0,
+        "pass": 0
+      },
+      "expiry_obscured": {
+        "total": 1,
+        "correct": 1,
+        "uncertain": 0,
+        "fail": 1,
+        "pass": 0
+      },
+      "fnsku_on_seam": {
+        "total": 1,
+        "correct": 1,
+        "uncertain": 0,
+        "fail": 1,
+        "pass": 0
+      },
+      "missing_warning": {
+        "total": 1,
+        "correct": 1,
+        "uncertain": 0,
+        "fail": 1,
+        "pass": 0
+      }
+    }
+  }
+}

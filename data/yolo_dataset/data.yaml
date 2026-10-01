@@ -1,0 +1,14 @@
+# Ultralytics YOLO Dataset Configuration for CUBE Prep Manager
+path: C:\Dhanvi\HACKATHONS\CUBE_2026\cube26-prp-0211-dhanvind360\data\yolo_dataset
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: package
+  1: polybag
+  2: fnsku
+  3: warning
+  4: barcode
+  5: expiry
+  6: handling_mark

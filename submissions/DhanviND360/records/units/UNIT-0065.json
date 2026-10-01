@@ -1,0 +1,155 @@
+{
+  "record_id": "PRP-0065",
+  "unit_id": "UNIT-0065",
+  "org_id": "org_demo_alpha",
+  "work_order_id": "WO-3012",
+  "fba_shipment_id": "FBA-CUBE-106",
+  "sku": "SKU-LAMP-LED",
+  "asin": "B0DUMMY357",
+  "fnsku": "X00CUBE0065",
+  "overall_status": "FAIL",
+  "issue_explanation": "FNSKU label is placed across/too close to a package edge. Original manufacturer barcode remains visible. One or more required handling marks are missing.",
+  "checks": {
+    "polybag_present_sealed": {
+      "verdict": "PASS",
+      "applicable": false,
+      "detail": "Polybag not required by work order."
+    },
+    "suffocation_warning": {
+      "verdict": "PASS",
+      "applicable": false,
+      "detail": "Suffocation warning not required by work order."
+    },
+    "fnsku_label_placement": {
+      "verdict": "FAIL",
+      "applicable": true,
+      "detail": "FNSKU label is placed across/too close to a package edge."
+    },
+    "original_barcode_covered": {
+      "verdict": "FAIL",
+      "applicable": true,
+      "detail": "Original manufacturer barcode remains visible."
+    },
+    "expiry_date": {
+      "verdict": "PASS",
+      "applicable": false,
+      "detail": "Expiry date verification not required by work order."
+    },
+    "handling_marks": {
+      "verdict": "FAIL",
+      "applicable": true,
+      "detail": "One or more required handling marks are missing."
+    }
+  },
+  "failure_reasons": [
+    "FNSKU label is placed across/too close to a package edge.",
+    "Original manufacturer barcode remains visible.",
+    "One or more required handling marks are missing."
+  ],
+  "uncertain_reasons": [],
+  "evidence_regions": [
+    {
+      "view": "front",
+      "label": "fnsku_label",
+      "bbox": [
+        515,
+        186,
+        160,
+        115
+      ],
+      "measurement": {
+        "edge_distance_px": -52,
+        "seam_overlap_iou": 0.0,
+        "curvature": 0.2903
+      }
+    }
+  ],
+  "evidence_vector": {
+    "image_quality": {
+      "front_blur": 1979.33,
+      "back_blur": 1270.18,
+      "label_blur": 1341.69,
+      "min_blur": 1270.18,
+      "is_ambiguous": false
+    },
+    "package_bounds": [
+      148,
+      75,
+      475,
+      385
+    ],
+    "fnsku": {
+      "detected": true,
+      "placement": "on_edge",
+      "reason": "FNSKU label is placed across/too close to a package edge (edge margin: -52px)",
+      "box": [
+        515,
+        186,
+        160,
+        115
+      ],
+      "edge_distance_px": -52,
+      "seam_overlap_iou": 0.0,
+      "curvature_metric": 0.2903
+    },
+    "polybag": {
+      "status": "not_required",
+      "reason": "Polybag not required by work order"
+    },
+    "suffocation_warning": {
+      "status": "not_required",
+      "reason": "Suffocation warning not required"
+    },
+    "original_barcode": {
+      "status": "no",
+      "reason": "Original manufacturer barcode remains visible."
+    },
+    "expiry_date": {
+      "status": "not_required",
+      "reason": "Expiry date verification not required"
+    },
+    "handling_marks": {
+      "status": "some_missing",
+      "reason": "Required handling marks missing: liquid, this_way_up"
+    }
+  },
+  "calibration": {
+    "is_calibrated": true,
+    "front_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 1979.33,
+      "glare_ratio": 0.0,
+      "mean_brightness": 183.06
+    },
+    "back_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 1270.18,
+      "glare_ratio": 0.0,
+      "mean_brightness": 180.07
+    },
+    "label_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 1341.69,
+      "glare_ratio": 0.0004,
+      "mean_brightness": 198.76
+    }
+  },
+  "performance": {
+    "latency_ms": 3211.63,
+    "estimated_compute_cost_usd": 0.00015,
+    "target_max_check_cost_usd": 0.075,
+    "cost_within_economics": true
+  },
+  "workflow_state": "completed",
+  "operator_id": "op_eli",
+  "captured_at": "2026-09-21T02:25:00Z"
+}

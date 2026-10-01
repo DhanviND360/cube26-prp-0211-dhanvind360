@@ -1,0 +1,135 @@
+{
+  "record_id": "PRP-0010",
+  "unit_id": "UNIT-0010",
+  "org_id": "org_demo_bravo",
+  "work_order_id": "WO-3001",
+  "fba_shipment_id": "FBA-CUBE-100",
+  "sku": "SKU-PROT-1KG",
+  "asin": "B0DUMMY357",
+  "fnsku": "X00CUBE0010",
+  "overall_status": "UNCERTAIN",
+  "issue_explanation": "Imagery does not reliably establish FNSKU placement. Imagery does not reliably establish whether the original barcode is covered. Imagery does not reliably establish expiry date legibility. Imagery does not reliably establish handling marks presence.",
+  "checks": {
+    "polybag_present_sealed": {
+      "verdict": "PASS",
+      "applicable": false,
+      "detail": "Polybag not required by work order."
+    },
+    "suffocation_warning": {
+      "verdict": "PASS",
+      "applicable": false,
+      "detail": "Suffocation warning not required by work order."
+    },
+    "fnsku_label_placement": {
+      "verdict": "UNCERTAIN",
+      "applicable": true,
+      "detail": "Image quality/blur prevents reliable FNSKU label localization"
+    },
+    "original_barcode_covered": {
+      "verdict": "UNCERTAIN",
+      "applicable": true,
+      "detail": "Imagery does not reliably establish whether the original barcode is covered."
+    },
+    "expiry_date": {
+      "verdict": "UNCERTAIN",
+      "applicable": true,
+      "detail": "Imagery does not reliably establish expiry date legibility."
+    },
+    "handling_marks": {
+      "verdict": "UNCERTAIN",
+      "applicable": true,
+      "detail": "Imagery does not reliably establish handling marks presence."
+    }
+  },
+  "failure_reasons": [],
+  "uncertain_reasons": [
+    "Imagery does not reliably establish FNSKU placement.",
+    "Imagery does not reliably establish whether the original barcode is covered.",
+    "Imagery does not reliably establish expiry date legibility.",
+    "Imagery does not reliably establish handling marks presence."
+  ],
+  "evidence_regions": [],
+  "evidence_vector": {
+    "image_quality": {
+      "front_blur": 2.8,
+      "back_blur": 0.86,
+      "label_blur": 0.83,
+      "min_blur": 0.83,
+      "is_ambiguous": true
+    },
+    "package_bounds": [
+      148,
+      75,
+      475,
+      385
+    ],
+    "fnsku": {
+      "detected": false,
+      "placement": "uncertain",
+      "reason": "Image quality/blur prevents reliable FNSKU label localization",
+      "box": null,
+      "edge_distance_px": 0,
+      "seam_overlap_iou": 0.0,
+      "curvature_metric": 0.0
+    },
+    "polybag": {
+      "status": "not_required",
+      "reason": "Polybag not required by work order"
+    },
+    "suffocation_warning": {
+      "status": "not_required",
+      "reason": "Suffocation warning not required"
+    },
+    "original_barcode": {
+      "status": "uncertain",
+      "reason": "Imagery does not reliably establish whether the original barcode is covered."
+    },
+    "expiry_date": {
+      "status": "uncertain",
+      "reason": "Imagery does not reliably establish expiry date legibility."
+    },
+    "handling_marks": {
+      "status": "uncertain",
+      "reason": "Imagery does not reliably establish handling marks presence."
+    }
+  },
+  "calibration": {
+    "is_calibrated": false,
+    "front_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 2.8,
+      "glare_ratio": 0.0,
+      "mean_brightness": 203.1
+    },
+    "back_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 0.86,
+      "glare_ratio": 0.0,
+      "mean_brightness": 211.85
+    },
+    "label_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 0.83,
+      "glare_ratio": 0.0,
+      "mean_brightness": 218.27
+    }
+  },
+  "performance": {
+    "latency_ms": 2940.41,
+    "estimated_compute_cost_usd": 0.00015,
+    "target_max_check_cost_usd": 0.075,
+    "cost_within_economics": true
+  },
+  "workflow_state": "pending_review",
+  "operator_id": "op_dana",
+  "captured_at": "2026-09-20T10:50:00Z"
+}

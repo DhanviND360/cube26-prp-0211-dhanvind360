@@ -1,0 +1,196 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CubeCommerceChainPrepEvidenceContract",
+  "description": "Standardized evidence record emitted by Step 2 Prep Manager for consumption by Step 5 Recovery Manager and downstream chain agents.",
+  "type": "object",
+  "required": [
+    "record_id",
+    "unit_id",
+    "org_id",
+    "work_order_id",
+    "fba_shipment_id",
+    "sku",
+    "fnsku",
+    "overall_status",
+    "workflow_state",
+    "checks",
+    "evidence_regions",
+    "calibration",
+    "performance",
+    "captured_at"
+  ],
+  "properties": {
+    "record_id": {
+      "type": "string",
+      "pattern": "^PRP-[0-9]{4}$",
+      "description": "Unique Prep Stage record identifier."
+    },
+    "unit_id": {
+      "type": "string",
+      "pattern": "^UNIT-[0-9]{4}$",
+      "description": "Shared unit join key across Receiving, Prep, Pack, Returns, and Recovery."
+    },
+    "org_id": {
+      "type": "string",
+      "enum": ["org_demo_alpha", "org_demo_bravo"],
+      "description": "Tenancy isolation identifier (Rule 1)."
+    },
+    "work_order_id": {
+      "type": "string",
+      "description": "Prep center work order reference."
+    },
+    "fba_shipment_id": {
+      "type": "string",
+      "description": "Inbound FBA shipment ID."
+    },
+    "sku": {
+      "type": "string",
+      "description": "Catalogue SKU."
+    },
+    "asin": {
+      "type": "string",
+      "description": "Amazon ASIN identifier."
+    },
+    "fnsku": {
+      "type": "string",
+      "description": "Amazon Fulfillment Network SKU."
+    },
+    "overall_status": {
+      "type": "string",
+      "enum": ["PASS", "FAIL", "UNCERTAIN"],
+      "description": "Deterministic overall preparation compliance verdict."
+    },
+    "workflow_state": {
+      "type": "string",
+      "enum": ["completed", "pending_review", "overridden"],
+      "description": "Current state in warehouse operational pipeline."
+    },
+    "issue_explanation": {
+      "type": "string",
+      "description": "Human-readable explanation of compliance or defects detected."
+    },
+    "failure_reasons": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Itemized list of exact failure reasons for disputed defect fee claims."
+    },
+    "uncertain_reasons": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Itemized list of ambiguity or calibration abstentions."
+    },
+    "checks": {
+      "type": "object",
+      "required": [
+        "polybag_present_sealed",
+        "suffocation_warning",
+        "fnsku_label_placement",
+        "original_barcode_covered",
+        "expiry_date",
+        "handling_marks"
+      ],
+      "properties": {
+        "polybag_present_sealed": {
+          "type": "object",
+          "properties": {
+            "verdict": { "type": "string", "enum": ["PASS", "FAIL", "UNCERTAIN", "NOT_REQUIRED"] },
+            "applicable": { "type": "boolean" },
+            "detail": { "type": "string" }
+          },
+          "required": ["verdict", "applicable", "detail"]
+        },
+        "suffocation_warning": {
+          "type": "object",
+          "properties": {
+            "verdict": { "type": "string", "enum": ["PASS", "FAIL", "UNCERTAIN", "NOT_REQUIRED"] },
+            "applicable": { "type": "boolean" },
+            "detail": { "type": "string" }
+          },
+          "required": ["verdict", "applicable", "detail"]
+        },
+        "fnsku_label_placement": {
+          "type": "object",
+          "properties": {
+            "verdict": { "type": "string", "enum": ["PASS", "FAIL", "UNCERTAIN"] },
+            "applicable": { "type": "boolean" },
+            "detail": { "type": "string" }
+          },
+          "required": ["verdict", "applicable", "detail"]
+        },
+        "original_barcode_covered": {
+          "type": "object",
+          "properties": {
+            "verdict": { "type": "string", "enum": ["PASS", "FAIL", "UNCERTAIN"] },
+            "applicable": { "type": "boolean" },
+            "detail": { "type": "string" }
+          },
+          "required": ["verdict", "applicable", "detail"]
+        },
+        "expiry_date": {
+          "type": "object",
+          "properties": {
+            "verdict": { "type": "string", "enum": ["PASS", "FAIL", "UNCERTAIN", "NOT_REQUIRED"] },
+            "applicable": { "type": "boolean" },
+            "detail": { "type": "string" }
+          },
+          "required": ["verdict", "applicable", "detail"]
+        },
+        "handling_marks": {
+          "type": "object",
+          "properties": {
+            "verdict": { "type": "string", "enum": ["PASS", "FAIL", "UNCERTAIN", "NOT_REQUIRED"] },
+            "applicable": { "type": "boolean" },
+            "detail": { "type": "string" }
+          },
+          "required": ["verdict", "applicable", "detail"]
+        }
+      }
+    },
+    "evidence_regions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["view", "label", "bbox"],
+        "properties": {
+          "view": { "type": "string", "enum": ["front", "back", "label"] },
+          "label": { "type": "string" },
+          "bbox": {
+            "type": "array",
+            "items": { "type": "integer" },
+            "minItems": 4,
+            "maxItems": 4,
+            "description": "[x, y, width, height] bounding box coordinates in pixels."
+          },
+          "measurement": { "type": "object" }
+        }
+      }
+    },
+    "calibration": {
+      "type": "object",
+      "required": ["is_calibrated"],
+      "properties": {
+        "is_calibrated": { "type": "boolean" },
+        "front_quality": { "type": "object" },
+        "back_quality": { "type": "object" },
+        "label_quality": { "type": "object" }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "required": ["latency_ms", "estimated_compute_cost_usd", "cost_within_economics"],
+      "properties": {
+        "latency_ms": { "type": "number" },
+        "estimated_compute_cost_usd": { "type": "number" },
+        "target_max_check_cost_usd": { "type": "number" },
+        "cost_within_economics": { "type": "boolean" }
+      }
+    },
+    "captured_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "operator_id": {
+      "type": "string"
+    }
+  }
+}

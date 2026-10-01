@@ -1,0 +1,151 @@
+{
+  "record_id": "PRP-0086",
+  "unit_id": "UNIT-0086",
+  "org_id": "org_demo_bravo",
+  "work_order_id": "WO-3017",
+  "fba_shipment_id": "FBA-CUBE-108",
+  "sku": "SKU-TOWEL-BLU",
+  "asin": "B0DUMMY600",
+  "fnsku": "X00CUBE0086",
+  "overall_status": "PASS",
+  "issue_explanation": "All applicable visual preparation checks are supported by the available evidence.",
+  "checks": {
+    "polybag_present_sealed": {
+      "verdict": "PASS",
+      "applicable": false,
+      "detail": "Polybag not required by work order."
+    },
+    "suffocation_warning": {
+      "verdict": "PASS",
+      "applicable": false,
+      "detail": "Suffocation warning not required by work order."
+    },
+    "fnsku_label_placement": {
+      "verdict": "PASS",
+      "applicable": true,
+      "detail": "FNSKU label is flat, properly centered away from edges, curves, and seams."
+    },
+    "original_barcode_covered": {
+      "verdict": "PASS",
+      "applicable": true,
+      "detail": "Original manufacturer barcode is fully covered or not exposed."
+    },
+    "expiry_date": {
+      "verdict": "PASS",
+      "applicable": false,
+      "detail": "Expiry date verification not required by work order."
+    },
+    "handling_marks": {
+      "verdict": "PASS",
+      "applicable": true,
+      "detail": "All required handling marks are present."
+    }
+  },
+  "failure_reasons": [],
+  "uncertain_reasons": [],
+  "evidence_regions": [
+    {
+      "view": "front",
+      "label": "fnsku_label",
+      "bbox": [
+        425,
+        196,
+        160,
+        115
+      ],
+      "measurement": {
+        "edge_distance_px": 38,
+        "seam_overlap_iou": 0.0,
+        "curvature": 0.2903
+      }
+    }
+  ],
+  "evidence_vector": {
+    "image_quality": {
+      "front_blur": 1155.35,
+      "back_blur": 638.31,
+      "label_blur": 1423.85,
+      "min_blur": 638.31,
+      "is_ambiguous": false
+    },
+    "package_bounds": [
+      148,
+      75,
+      475,
+      385
+    ],
+    "fnsku": {
+      "detected": true,
+      "placement": "flat",
+      "reason": "FNSKU label is flat, centered away from edges, curves, and seams.",
+      "box": [
+        425,
+        196,
+        160,
+        115
+      ],
+      "edge_distance_px": 38,
+      "seam_overlap_iou": 0.0,
+      "curvature_metric": 0.2903
+    },
+    "polybag": {
+      "status": "not_required",
+      "reason": "Polybag not required by work order"
+    },
+    "suffocation_warning": {
+      "status": "not_required",
+      "reason": "Suffocation warning not required"
+    },
+    "original_barcode": {
+      "status": "yes",
+      "reason": "Original manufacturer barcode is properly covered or absent."
+    },
+    "expiry_date": {
+      "status": "not_required",
+      "reason": "Expiry date verification not required"
+    },
+    "handling_marks": {
+      "status": "all_present",
+      "reason": "All required handling marks present (liquid)"
+    }
+  },
+  "calibration": {
+    "is_calibrated": true,
+    "front_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 1155.35,
+      "glare_ratio": 0.0283,
+      "mean_brightness": 197.76
+    },
+    "back_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 638.31,
+      "glare_ratio": 0.0288,
+      "mean_brightness": 201.75
+    },
+    "label_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 1423.85,
+      "glare_ratio": 0.1144,
+      "mean_brightness": 207.59
+    }
+  },
+  "performance": {
+    "latency_ms": 3125.12,
+    "estimated_compute_cost_usd": 0.00015,
+    "target_max_check_cost_usd": 0.075,
+    "cost_within_economics": true
+  },
+  "workflow_state": "completed",
+  "operator_id": "op_ben",
+  "captured_at": "2026-09-21T08:22:00Z"
+}

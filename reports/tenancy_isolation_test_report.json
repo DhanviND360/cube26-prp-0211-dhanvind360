@@ -1,0 +1,13 @@
+{
+  "status": "PASSED",
+  "tenants_tested": [
+    "org_demo_alpha",
+    "org_demo_bravo"
+  ],
+  "records_alpha": 50,
+  "records_bravo": 50,
+  "test_1_alpha_leak_count": 0,
+  "test_2_bravo_leak_count": 0,
+  "test_3_cross_tenant_key_guess_blocked": true,
+  "rule_1_compliance": true
+}

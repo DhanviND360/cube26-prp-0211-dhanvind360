@@ -1,0 +1,133 @@
+{
+  "record_id": "PRP-0049",
+  "unit_id": "UNIT-0049",
+  "org_id": "org_demo_alpha",
+  "work_order_id": "WO-3009",
+  "fba_shipment_id": "FBA-CUBE-104",
+  "sku": "SKU-SERUM-30",
+  "asin": "B0DUMMY031",
+  "fnsku": "X00CUBE0049",
+  "overall_status": "FAIL",
+  "issue_explanation": "FNSKU label is missing from prepped unit. One or more required handling marks are missing.",
+  "checks": {
+    "polybag_present_sealed": {
+      "verdict": "PASS",
+      "applicable": true,
+      "detail": "Polybag is present and verified correctly sealed."
+    },
+    "suffocation_warning": {
+      "verdict": "PASS",
+      "applicable": true,
+      "detail": "Suffocation warning is present, unobstructed and fully legible."
+    },
+    "fnsku_label_placement": {
+      "verdict": "FAIL",
+      "applicable": true,
+      "detail": "FNSKU label is missing from prepped unit."
+    },
+    "original_barcode_covered": {
+      "verdict": "PASS",
+      "applicable": true,
+      "detail": "Original manufacturer barcode is fully covered or not exposed."
+    },
+    "expiry_date": {
+      "verdict": "PASS",
+      "applicable": true,
+      "detail": "Expiry date is visible and legible after wrapping."
+    },
+    "handling_marks": {
+      "verdict": "FAIL",
+      "applicable": true,
+      "detail": "One or more required handling marks are missing."
+    }
+  },
+  "failure_reasons": [
+    "FNSKU label is missing from prepped unit.",
+    "One or more required handling marks are missing."
+  ],
+  "uncertain_reasons": [],
+  "evidence_regions": [],
+  "evidence_vector": {
+    "image_quality": {
+      "front_blur": 920.98,
+      "back_blur": 560.16,
+      "label_blur": 437.72,
+      "min_blur": 437.72,
+      "is_ambiguous": false
+    },
+    "package_bounds": [
+      148,
+      75,
+      475,
+      385
+    ],
+    "fnsku": {
+      "detected": false,
+      "placement": "missing",
+      "reason": "No FNSKU label detected on prepped unit",
+      "box": null,
+      "edge_distance_px": 0,
+      "seam_overlap_iou": 0.0,
+      "curvature_metric": 0.0
+    },
+    "polybag": {
+      "status": "yes",
+      "reason": "Polybag present and correctly sealed."
+    },
+    "suffocation_warning": {
+      "status": "legible",
+      "reason": "Suffocation warning is present, unobstructed and legible."
+    },
+    "original_barcode": {
+      "status": "yes",
+      "reason": "Original manufacturer barcode is properly covered or absent."
+    },
+    "expiry_date": {
+      "status": "legible",
+      "reason": "Expiry date is visible and legible after wrapping."
+    },
+    "handling_marks": {
+      "status": "some_missing",
+      "reason": "Required handling marks missing: this_way_up"
+    }
+  },
+  "calibration": {
+    "is_calibrated": true,
+    "front_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 920.98,
+      "glare_ratio": 0.0081,
+      "mean_brightness": 221.4
+    },
+    "back_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 560.16,
+      "glare_ratio": 0.0005,
+      "mean_brightness": 221.86
+    },
+    "label_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 437.72,
+      "glare_ratio": 0.0,
+      "mean_brightness": 221.31
+    }
+  },
+  "performance": {
+    "latency_ms": 3017.01,
+    "estimated_compute_cost_usd": 0.00015,
+    "target_max_check_cost_usd": 0.075,
+    "cost_within_economics": true
+  },
+  "workflow_state": "completed",
+  "operator_id": "op_amira",
+  "captured_at": "2026-09-20T21:53:00Z"
+}

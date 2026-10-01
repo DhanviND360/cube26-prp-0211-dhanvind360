@@ -12,6 +12,50 @@
 
 ---
 
+## 🏆 Round 2 Individual Submission: DhanviND360
+
+**Participant:** Dhanvi N. D. (`DhanviND360`)  
+**Submission Package Directory:** [`submissions/DhanviND360/`](submissions/DhanviND360/README.md)  
+**Architecture Document:** [`ARCHITECTURE.md`](ARCHITECTURE.md)  
+**Evaluation Report:** [`submissions/DhanviND360/eval-report.md`](submissions/DhanviND360/eval-report.md)  
+**Cross-Pod Contract:** [`submissions/DhanviND360/contract/prep_evidence_contract.json`](submissions/DhanviND360/contract/prep_evidence_contract.json)  
+
+### Key Results Summary
+- **Cost per Unit:** **$0.00015** (under 0.02% of $0.75 prep fee — exceeds $0.075 economic bound by 500x).
+- **Inference Speed:** **31.02 ms** (640px ONNX nano detector, 32.2 fps).
+- **Validation Macro-F1:** **0.8030** (Accuracy: 86.7%, UNCERTAIN Rate: 13.3%).
+- **Heldout Test Macro-F1:** **0.7037** (Accuracy: 73.3%, UNCERTAIN Rate: 20.0%, 0 false positive abstentions).
+- **Tenancy Isolation:** **100% Passed** (Rule 1 row-level security and unguessable key protection).
+- **Conveyor Safety:** **Fail-Open Guarantees** (Rule 3 non-blocking `pending_review` execution).
+
+### How to Run & Inspect
+```bash
+# 1. Launch Interactive Streamlit Warehouse Operator Portal
+streamlit run app.py
+
+# 2. Run Headless Single-Unit Verification Pipeline
+python -c "
+import cv2, pandas as pd
+from agent.prep_agent import PrepManagerAgent
+agent = PrepManagerAgent()
+df = pd.read_csv('cube_prep_dataset/cube_prep_dataset.csv')
+row = df.iloc[0]
+rec = agent.inspect_unit('UNIT-0001', cv2.imread('cube_prep_dataset/images/UNIT-0001_front.jpg'), cv2.imread('cube_prep_dataset/images/UNIT-0001_back.jpg'), cv2.imread('cube_prep_dataset/images/UNIT-0001_label.jpg'), row.to_dict())
+print('Status:', rec['overall_status'], '| Latency:', rec['performance']['latency_ms'], 'ms')
+"
+
+# 3. Run Tenancy Isolation Test (Rule 1)
+python scripts/test_tenancy_isolation.py
+
+# 4. Run Model Evaluation Across Splits
+python scripts/evaluate_models.py
+
+# 5. Benchmark Unit Economics & Throughput
+python scripts/benchmark_economics.py
+```
+
+---
+
 ## Your problem statement: Prep Manager
 
 |                              |                                                                      |

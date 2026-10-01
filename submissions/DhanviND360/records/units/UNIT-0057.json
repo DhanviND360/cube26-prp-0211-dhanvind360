@@ -1,0 +1,136 @@
+{
+  "record_id": "PRP-0057",
+  "unit_id": "UNIT-0057",
+  "org_id": "org_demo_alpha",
+  "work_order_id": "WO-3011",
+  "fba_shipment_id": "FBA-CUBE-105",
+  "sku": "SKU-LEASH-6FT",
+  "asin": "B0DUMMY205",
+  "fnsku": "X00CUBE0057",
+  "overall_status": "UNCERTAIN",
+  "issue_explanation": "Imagery does not reliably establish polybag presence or closure. Imagery does not reliably establish warning visibility or legibility. Imagery does not reliably establish FNSKU placement. Imagery does not reliably establish whether the original barcode is covered. Imagery does not reliably establish handling marks presence.",
+  "checks": {
+    "polybag_present_sealed": {
+      "verdict": "UNCERTAIN",
+      "applicable": true,
+      "detail": "Imagery does not reliably establish polybag presence or closure."
+    },
+    "suffocation_warning": {
+      "verdict": "UNCERTAIN",
+      "applicable": true,
+      "detail": "Imagery does not reliably establish warning visibility or legibility."
+    },
+    "fnsku_label_placement": {
+      "verdict": "UNCERTAIN",
+      "applicable": true,
+      "detail": "Image quality/blur prevents reliable FNSKU label localization"
+    },
+    "original_barcode_covered": {
+      "verdict": "UNCERTAIN",
+      "applicable": true,
+      "detail": "Imagery does not reliably establish whether the original barcode is covered."
+    },
+    "expiry_date": {
+      "verdict": "PASS",
+      "applicable": false,
+      "detail": "Expiry date verification not required by work order."
+    },
+    "handling_marks": {
+      "verdict": "UNCERTAIN",
+      "applicable": true,
+      "detail": "Imagery does not reliably establish handling marks presence."
+    }
+  },
+  "failure_reasons": [],
+  "uncertain_reasons": [
+    "Imagery does not reliably establish polybag presence or closure.",
+    "Imagery does not reliably establish warning visibility or legibility.",
+    "Imagery does not reliably establish FNSKU placement.",
+    "Imagery does not reliably establish whether the original barcode is covered.",
+    "Imagery does not reliably establish handling marks presence."
+  ],
+  "evidence_regions": [],
+  "evidence_vector": {
+    "image_quality": {
+      "front_blur": 3.03,
+      "back_blur": 0.59,
+      "label_blur": 0.76,
+      "min_blur": 0.59,
+      "is_ambiguous": true
+    },
+    "package_bounds": [
+      148,
+      75,
+      475,
+      385
+    ],
+    "fnsku": {
+      "detected": false,
+      "placement": "uncertain",
+      "reason": "Image quality/blur prevents reliable FNSKU label localization",
+      "box": null,
+      "edge_distance_px": 0,
+      "seam_overlap_iou": 0.0,
+      "curvature_metric": 0.0
+    },
+    "polybag": {
+      "status": "uncertain",
+      "reason": "Imagery does not reliably establish polybag presence or closure."
+    },
+    "suffocation_warning": {
+      "status": "uncertain",
+      "reason": "Imagery does not reliably establish warning visibility or legibility."
+    },
+    "original_barcode": {
+      "status": "uncertain",
+      "reason": "Imagery does not reliably establish whether the original barcode is covered."
+    },
+    "expiry_date": {
+      "status": "not_required",
+      "reason": "Expiry date verification not required"
+    },
+    "handling_marks": {
+      "status": "uncertain",
+      "reason": "Imagery does not reliably establish handling marks presence."
+    }
+  },
+  "calibration": {
+    "is_calibrated": false,
+    "front_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 3.03,
+      "glare_ratio": 0.0218,
+      "mean_brightness": 230.55
+    },
+    "back_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 0.59,
+      "glare_ratio": 0.0,
+      "mean_brightness": 222.44
+    },
+    "label_quality": {
+      "resolution": [
+        768,
+        576
+      ],
+      "blur_metric": 0.76,
+      "glare_ratio": 0.0,
+      "mean_brightness": 223.41
+    }
+  },
+  "performance": {
+    "latency_ms": 3099.02,
+    "estimated_compute_cost_usd": 0.00015,
+    "target_max_check_cost_usd": 0.075,
+    "cost_within_economics": true
+  },
+  "workflow_state": "pending_review",
+  "operator_id": "op_chen",
+  "captured_at": "2026-09-21T00:09:00Z"
+}

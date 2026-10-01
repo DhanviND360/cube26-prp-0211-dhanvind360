@@ -1,0 +1,12 @@
+{
+  "model_file": "models/best_detector.onnx",
+  "file_size_mb": 11.7,
+  "input_resolution": [
+    640,
+    640
+  ],
+  "execution_provider": "CPUExecutionProvider",
+  "avg_latency_ms": 31.02,
+  "p95_latency_ms": 35.48,
+  "throughput_fps": 32.24
+}

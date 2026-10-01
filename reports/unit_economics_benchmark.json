@@ -1,0 +1,21 @@
+{
+  "cost_per_unit_usd": 0.00015,
+  "cost_breakdown_usd": {
+    "detector_compute": 4e-06,
+    "ocr_and_spatial": 0.000145,
+    "storage_3_photos": 1e-06,
+    "llm_api": 0.0
+  },
+  "prep_economics": {
+    "min_prep_price_usd": 0.4,
+    "max_prep_price_usd": 1.1,
+    "avg_prep_price_usd": 0.75,
+    "cost_share_percentage": 0.02,
+    "within_economic_target": true
+  },
+  "throughput": {
+    "latency_mean_ms": 3154.8,
+    "units_per_hour_single_worker": 1141.1,
+    "units_per_day_facility": 146061.8
+  }
+}
