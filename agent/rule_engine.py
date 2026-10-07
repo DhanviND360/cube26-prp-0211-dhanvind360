@@ -266,16 +266,20 @@ class PrepRuleEngine:
         if failure_reasons:
             overall_status = "FAIL"
             explanation = " ".join(failure_reasons)
+            confidence = 0.92
         elif uncertain_reasons or is_ambiguous:
             overall_status = "UNCERTAIN"
             explanation = " ".join(uncertain_reasons) if uncertain_reasons else "Imagery quality does not reliably establish compliance."
+            confidence = 0.40
         else:
             overall_status = "PASS"
             explanation = "All applicable visual preparation checks are supported by the available evidence."
+            confidence = 0.96
 
         return {
             "overall_status": overall_status,
             "explanation": explanation,
+            "confidence": confidence,
             "checks": checks,
             "failure_reasons": failure_reasons,
             "uncertain_reasons": uncertain_reasons,

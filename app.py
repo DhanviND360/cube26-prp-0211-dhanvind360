@@ -128,12 +128,16 @@ if front_img is not None and record and "evidence_vector" in record:
         cv2.rectangle(f_disp, (x, y), (x + w, y + h), (0, 255, 0), 3)
         cv2.putText(f_disp, "FNSKU LABEL", (x, max(20, y - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
     if show_seams:
-        # Seam center line
-        cv2.line(f_disp, (384, 75), (384, 460), (0, 140, 255), 2)
-        cv2.putText(f_disp, "SEAM", (388, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 140, 255), 1)
-        # Edge lines
-        cv2.line(f_disp, (623, 75), (623, 460), (0, 0, 255), 2)
-        cv2.putText(f_disp, "EDGE", (580, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+        pkg_b = record["evidence_vector"].get("package_bounds", [0, 0, f_disp.shape[1], f_disp.shape[0]])
+        px, py, pw, ph = pkg_b
+        # Dynamic package edges
+        cv2.rectangle(f_disp, (px, py), (px + pw, py + ph), (0, 0, 255), 2)
+        cv2.putText(f_disp, "PKG EDGE", (px + 5, max(20, py + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+        # Dynamic detected seams
+        seam_positions = record["evidence_vector"].get("fnsku", {}).get("seam_positions", [])
+        for sx in seam_positions:
+            cv2.line(f_disp, (sx, py), (sx, py + ph), (0, 140, 255), 2)
+            cv2.putText(f_disp, "SEAM", (sx + 4, max(40, py + 40)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 140, 255), 1)
     f_disp_rgb = cv2.cvtColor(f_disp, cv2.COLOR_BGR2RGB)
 else:
     f_disp_rgb = cv2.cvtColor(front_img, cv2.COLOR_BGR2RGB) if front_img is not None else None

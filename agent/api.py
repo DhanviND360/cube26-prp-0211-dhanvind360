@@ -3,6 +3,7 @@ Production FastAPI REST & Real-Time Streaming Service for CUBE Prep Manager (Pod
 Features:
 - Configurable CORS & Security Middleware
 - Health & Readiness Probes (/health, /health/ready)
+- Round 3 Agent Adapter (/run) with CUBE Agent I/O spec compliance
 - Multi-Image Multipart Upload with Progressive SSE Streaming (/api/v1/inspect/stream/upload)
 - Reference-Based Progressive SSE Streaming (/api/v1/inspect/stream)
 - Idempotency & Duplicate Upload Detection
@@ -15,10 +16,14 @@ Features:
 """
 
 import os
+import io
 import cv2
 import json
 import time
+import uuid
 import asyncio
+import hashlib
+import tempfile
 import numpy as np
 from typing import Optional, List, Dict, Any
 from fastapi import (
@@ -36,10 +41,13 @@ from agent.db import get_database_provider
 from agent.metrics import metrics_tracker
 from agent.validator import validate_prep_record
 
+# Request size limit (16MB max)
+MAX_REQUEST_BODY_BYTES = 16 * 1024 * 1024
+
 app = FastAPI(
     title="CUBE Prep Manager API",
-    description="Step 2 of Commerce Context Chain: Visual Inbound Prep Compliance & Evidence Engine",
-    version="2.2.0"
+    description="PREP Agent: Visual Inbound Prep Compliance & Evidence Engine. Standalone inspection service with Round 3 /run adapter.",
+    version="3.0.0"
 )
 
 # CORS Middleware (Vercel Next.js / Streamlit / Localhost)
@@ -85,18 +93,40 @@ concurrency_limiter = asyncio.Semaphore(settings.MAX_CONCURRENT_INSPECTIONS)
 jobs_registry: Dict[str, Dict[str, Any]] = {}
 
 # Security & Tenant Dependency
-def get_tenant_org(x_org_id: Optional[str] = Header(None)) -> str:
-    """Extract and validate tenant organization ID (Rule 1)."""
-    org = x_org_id or settings.DEFAULT_ORG_ID
-    if org not in ["org_demo_alpha", "org_demo_bravo"]:
-        return settings.DEFAULT_ORG_ID
-    return org
+VALID_TENANTS = {"org_demo_alpha", "org_demo_bravo"}
 
-def verify_api_key(x_api_key: Optional[str] = Header(None)):
-    """Optional API key verification for production."""
+def get_tenant_org(x_org_id: Optional[str] = Header(None)) -> str:
+    """Extract and validate tenant organization ID (Rule 1). Rejects unauthorized tenants."""
+    if not x_org_id:
+        return settings.DEFAULT_ORG_ID
+    if x_org_id not in VALID_TENANTS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Invalid or unauthorized organisation/tenant: '{x_org_id}'. Allowed tenants: {sorted(list(VALID_TENANTS))}"
+        )
+    return x_org_id
+
+def verify_api_key(
+    x_api_key: Optional[str] = Header(None),
+    authorization: Optional[str] = Header(None)
+) -> bool:
+    """
+    Step 5: API Key verification.
+    Accepts X-API-Key or Authorization Bearer header.
+    Loaded strictly from environment variable SERVER_API_KEY.
+    """
     if settings.REQUIRE_AUTH:
-        if not x_api_key or x_api_key != settings.SERVER_API_KEY:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API Key.")
+        token = x_api_key
+        if not token and authorization:
+            if authorization.startswith("Bearer "):
+                token = authorization[7:].strip()
+            else:
+                token = authorization.strip()
+        if not token or token != settings.SERVER_API_KEY:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized: Missing or invalid API Key."
+            )
     return True
 
 # --- SCHEMAS ---
@@ -142,8 +172,9 @@ def health_check():
     return {
         "status": "healthy",
         "service": "cube-prep-manager-api",
-        "version": "2.2.0",
+        "version": "3.0.0",
         "env": settings.ENV,
+        "detector_active": pipeline.agent.onnx_session is not None,
         "detector_available": pipeline.agent.onnx_session is not None,
         "active_onnx_providers": active_providers,
         "storage_backend": settings.STORAGE_BACKEND,
@@ -155,7 +186,11 @@ def health_check():
 def readiness_check():
     if pipeline.agent.onnx_session is None and not os.path.exists(settings.ONNX_MODEL_PATH):
         raise HTTPException(status_code=503, detail="Detector model weights not loaded")
-    return {"status": "ready", "ready": True}
+    return {
+        "status": "ready",
+        "ready": True,
+        "detector_active": pipeline.agent.onnx_session is not None
+    }
 
 # --- MULTIPART UPLOAD WITH PROGRESSIVE SSE STREAMING ---
 @app.post("/api/v1/inspect/stream/upload", tags=["Inspection"])
@@ -765,6 +800,294 @@ def get_dataset_samples():
                     "description": r.get("expected_issue_explanation", "")
                 })
     return {"samples": samples}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ROUND 3 AGENT ADAPTER: /run endpoint
+# Thin adapter around the PREP core engine for Round 3 orchestration.
+# Does NOT add orchestration, workflow state, routing, retries, or recovery.
+# ─────────────────────────────────────────────────────────────────────────────
+
+class AgentRunRequest(BaseModel):
+    """CUBE Round 3 Agent Input specification."""
+    task_id: Optional[str] = Field(None, description="Unique task identifier from orchestrator")
+    unit_id: Optional[str] = Field(None, description="Unit identifier to inspect (e.g. UNIT-0001)")
+    id: Optional[str] = Field(None, description="Alias for unit_id")
+    images: Optional[Dict[str, Any]] = Field(
+        None, description="Dict of view->image (base64 string, URL, or local path): {front, back, label}"
+    )
+    image_refs: Optional[Dict[str, Any]] = Field(
+        None, description="Dict of view->file path or URL references: {front, back, label}"
+    )
+    photo_front: Optional[str] = Field(None, description="Direct front view image reference/data")
+    photo_back: Optional[str] = Field(None, description="Direct back view image reference/data")
+    photo_label: Optional[str] = Field(None, description="Direct label view image reference/data")
+    work_order: Optional[Dict[str, Any]] = Field(
+        default_factory=dict, description="Work order configuration (prep requirements)"
+    )
+    params: Optional[Dict[str, Any]] = Field(
+        default_factory=dict, description="Alias for work_order parameters"
+    )
+    org_id: Optional[str] = Field(None, description="Tenant organization ID (org_demo_alpha or org_demo_bravo)")
+    tenant: Optional[str] = Field(None, description="Alias for org_id")
+    force_reinspect: Optional[bool] = Field(False, description="Bypass cache")
+
+    class Config:
+        extra = "allow"
+
+class AgentRunResponse(BaseModel):
+    """CUBE Round 3 Agent Output specification."""
+    task_id: Optional[str] = Field(None, description="Unique task identifier")
+    agent: str = Field("prep", description="Agent name")
+    stage: str = Field("prep", description="Stage identifier")
+    org_id: str = Field("org_demo_alpha", description="Tenant organization ID")
+    tenant: Optional[str] = Field("org_demo_alpha", description="Alias for org_id")
+    status: str = Field("success", description="Status: success or error")
+    decision: str = Field("PASS", description="Stage verdict: PASS, FAIL, or UNCERTAIN")
+    verdict: str = Field("PASS", description="Alias for decision")
+    confidence: float = Field(0.96, description="Confidence score between 0.0 and 1.0")
+    explanation: str = Field("", description="Human-readable decision explanation")
+    checks: Dict[str, Any] = Field(default_factory=dict, description="Itemized individual checks")
+    evidence: Dict[str, Any] = Field(default_factory=dict, description="Detailed visual and spatial evidence")
+    record: Optional[Dict[str, Any]] = Field(None, description="Full compliance record conforming to schema contract")
+    error: Optional[str] = Field(None, description="Error message if status is 'error'")
+    latency_ms: Optional[float] = Field(None, description="Total execution latency in milliseconds")
+
+    class Config:
+        extra = "allow"
+
+
+import base64
+
+
+def _decode_base64_image(b64_str: str) -> Optional[np.ndarray]:
+    """Decode a base64-encoded image string to an OpenCV image."""
+    try:
+        if "," in b64_str:
+            b64_str = b64_str.split(",", 1)[1]
+        img_bytes = base64.b64decode(b64_str)
+        if len(img_bytes) == 0:
+            return None
+        arr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        return img
+    except Exception:
+        return None
+
+
+def _resolve_single_image(val: Any, org_id: str) -> Optional[np.ndarray]:
+    """Resolves an image from base64 string, HTTP URL, local path, or ndarray."""
+    if val is None:
+        return None
+    if isinstance(val, np.ndarray):
+        return val
+    if not isinstance(val, str) or not val.strip():
+        return None
+    val = val.strip()
+
+    # 1. Base64 encoded data
+    if val.startswith("data:image") or (len(val) > 300 and not val.startswith("http") and not os.path.exists(val)):
+        decoded = _decode_base64_image(val)
+        if decoded is not None:
+            return decoded
+
+    # 2. HTTP / HTTPS URL
+    if val.startswith("http://") or val.startswith("https://"):
+        try:
+            with httpx.Client(timeout=10.0) as http_client:
+                resp = http_client.get(val)
+                if resp.status_code == 200 and len(resp.content) > 0:
+                    arr = np.frombuffer(resp.content, np.uint8)
+                    return cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        except Exception:
+            pass
+
+    # 3. Local file path
+    if os.path.exists(val):
+        return cv2.imread(val)
+
+    # 4. Search in dataset or uploads directory
+    for prefix in ["cube_prep_dataset/", "cube_prep_dataset/images/", "data/uploads/", "data/test_uploads/"]:
+        p = os.path.join(prefix, os.path.basename(val))
+        if os.path.exists(p):
+            return cv2.imread(p)
+
+    # 5. Storage abstraction
+    return storage.get_image(val, org_id)
+
+
+@app.post("/run", tags=["Round3 Agent"], response_model=AgentRunResponse)
+async def agent_run(
+    request: AgentRunRequest,
+    _: bool = Depends(verify_api_key)
+):
+    """
+    CUBE Round 3 Agent /run endpoint.
+    Standardized adapter conforming to the Round 3 Agent Input/Output specification.
+    Callable by Saif's orchestrator and independent clients.
+    """
+    t_start = time.perf_counter()
+    task_id = request.task_id or f"prep-{uuid.uuid4().hex[:8]}"
+
+    # Validate tenant (Rule 1 & Step 8)
+    org_id = request.org_id or request.tenant or settings.DEFAULT_ORG_ID
+    if org_id not in VALID_TENANTS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Invalid or unauthorized organisation/tenant: '{org_id}'. Allowed tenants: {sorted(list(VALID_TENANTS))}"
+        )
+
+    unit_id = request.unit_id or request.id or "UNIT-0001"
+
+    try:
+        # Extract image inputs across all supported formats
+        raw_front = None
+        raw_back = None
+        raw_label = None
+
+        if request.images and isinstance(request.images, dict):
+            raw_front = request.images.get("front") or request.images.get("photo_front")
+            raw_back = request.images.get("back") or request.images.get("photo_back")
+            raw_label = request.images.get("label") or request.images.get("photo_label")
+
+        if not raw_front and request.image_refs and isinstance(request.image_refs, dict):
+            raw_front = request.image_refs.get("front") or request.image_refs.get("photo_front")
+            raw_back = request.image_refs.get("back") or request.image_refs.get("photo_back")
+            raw_label = request.image_refs.get("label") or request.image_refs.get("photo_label")
+
+        # Top-level direct references
+        raw_front = raw_front or request.photo_front
+        raw_back = raw_back or request.photo_back
+        raw_label = raw_label or request.photo_label
+
+        # Resolve image data
+        front_img = _resolve_single_image(raw_front, org_id) if raw_front else None
+        back_img = _resolve_single_image(raw_back, org_id) if raw_back else None
+        label_img = _resolve_single_image(raw_label, org_id) if raw_label else None
+
+        # Fallback to standard dataset paths if references weren't passed
+        if front_img is None:
+            front_img = _resolve_single_image(f"cube_prep_dataset/images/{unit_id}_front.jpg", org_id)
+        if back_img is None:
+            back_img = _resolve_single_image(f"cube_prep_dataset/images/{unit_id}_back.jpg", org_id)
+        if label_img is None:
+            label_img = _resolve_single_image(f"cube_prep_dataset/images/{unit_id}_label.jpg", org_id)
+
+        # Resiliency: Handle unavailable image streams
+        if front_img is None or back_img is None or label_img is None:
+            missing = []
+            if front_img is None: missing.append("front")
+            if back_img is None: missing.append("back")
+            if label_img is None: missing.append("label")
+            err_msg = f"Could not resolve required image view(s): {', '.join(missing)} for unit {unit_id}."
+            return AgentRunResponse(
+                task_id=task_id,
+                agent="prep",
+                stage="prep",
+                org_id=org_id,
+                tenant=org_id,
+                status="error",
+                decision="UNCERTAIN",
+                verdict="UNCERTAIN",
+                confidence=0.0,
+                explanation=err_msg,
+                checks={},
+                evidence={"error": err_msg, "missing_views": missing},
+                error=err_msg,
+                latency_ms=round((time.perf_counter() - t_start) * 1000.0, 2)
+            )
+
+        # Idempotency / Duplicate Check
+        if not request.force_reinspect:
+            existing = db.get_record(unit_id, org_id)
+            if existing:
+                cached_decision = existing["overall_status"]
+                cached_conf = existing.get("confidence", 0.96 if cached_decision == "PASS" else (0.92 if cached_decision == "FAIL" else 0.40))
+                return AgentRunResponse(
+                    task_id=task_id,
+                    agent="prep",
+                    stage="prep",
+                    org_id=org_id,
+                    tenant=org_id,
+                    status="success",
+                    decision=cached_decision,
+                    verdict=cached_decision,
+                    confidence=cached_conf,
+                    explanation=existing.get("issue_explanation", ""),
+                    checks=existing.get("checks", {}),
+                    evidence=existing.get("evidence_vector", {}),
+                    record=existing,
+                    latency_ms=round((time.perf_counter() - t_start) * 1000.0, 2)
+                )
+
+        # Assemble work order dictionary
+        wo = dict(request.params or {})
+        wo.update(request.work_order or {})
+        wo.setdefault("unit_id", unit_id)
+
+        # Run core inspection engine
+        async with concurrency_limiter:
+            record = await asyncio.to_thread(
+                pipeline.agent.inspect_unit,
+                unit_id,
+                front_img,
+                back_img,
+                label_img,
+                wo,
+                org_id=org_id
+            )
+
+        # Persist and record telemetry
+        db.save_record(record, org_id)
+        latency_ms = round((time.perf_counter() - t_start) * 1000.0, 2)
+
+        metrics_tracker.record_finish(
+            unit_id=unit_id,
+            org_id=org_id,
+            verdict=record["overall_status"],
+            total_latency_ms=latency_ms,
+            cost_usd=record["performance"].get("estimated_compute_cost_usd", 0.00015)
+        )
+
+        decision = record["overall_status"]
+        conf = record.get("confidence", 0.96 if decision == "PASS" else (0.92 if decision == "FAIL" else 0.40))
+
+        return AgentRunResponse(
+            task_id=task_id,
+            agent="prep",
+            stage="prep",
+            org_id=org_id,
+            tenant=org_id,
+            status="success",
+            decision=decision,
+            verdict=decision,
+            confidence=conf,
+            explanation=record.get("issue_explanation", ""),
+            checks=record.get("checks", {}),
+            evidence=record.get("evidence_vector", {}),
+            record=record,
+            latency_ms=latency_ms
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        return AgentRunResponse(
+            task_id=task_id,
+            agent="prep",
+            stage="prep",
+            org_id=org_id,
+            tenant=org_id,
+            status="error",
+            decision="UNCERTAIN",
+            verdict="UNCERTAIN",
+            confidence=0.0,
+            explanation=f"Error executing Prep inspection: {str(e)}",
+            checks={},
+            evidence={"error": str(e)},
+            error=str(e),
+            latency_ms=round((time.perf_counter() - t_start) * 1000.0, 2)
+        )
+
 
 # --- FRONTEND ROUTING ---
 @app.get("/", include_in_schema=False)

@@ -10,7 +10,10 @@ import jsonschema
 from typing import Dict, Any, Tuple, Optional
 
 # Locate canonical schema
+_PKG_DIR = os.path.dirname(os.path.abspath(__file__))
 _CONTRACT_PATHS = [
+    os.path.join(_PKG_DIR, "prep_evidence_contract.json"),
+    os.path.join(_PKG_DIR, "..", "submissions", "DhanviND360", "contract", "prep_evidence_contract.json"),
     "submissions/DhanviND360/contract/prep_evidence_contract.json",
     "contract/prep_evidence_contract.json"
 ]
@@ -18,9 +21,10 @@ _CONTRACT_PATHS = [
 _SCHEMA: Optional[Dict[str, Any]] = None
 
 for path in _CONTRACT_PATHS:
-    if os.path.exists(path):
+    norm_path = os.path.normpath(path)
+    if os.path.exists(norm_path):
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(norm_path, "r", encoding="utf-8") as f:
                 _SCHEMA = json.load(f)
             break
         except Exception:

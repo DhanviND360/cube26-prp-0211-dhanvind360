@@ -65,6 +65,46 @@ Every inspection response and streamed event emitted by this API conforms 100% t
 | `GET` | `/api/v1/metrics` | Live production telemetry: latencies, throughput, errors, storage, economics |
 | `GET` | `/health` | Liveness probe returning model readiness and active ONNX providers |
 | `GET` | `/health/ready` | Readiness probe for container orchestrator health checking |
+| `POST` | `/run` | **Round 3 Agent Adapter**: Standardized CUBE Agent I/O interface |
+
+### Round 3 Agent `/run` Adapter Interface
+
+The PREP Manager provides a thin adapter endpoint `POST /run` conforming strictly to the CUBE Round 3 Agent Input/Output specification:
+
+```json
+// Request: POST /run
+{
+  "task_id": "task-uuid-or-id",
+  "unit_id": "UNIT-0001",
+  "org_id": "org_demo_alpha",
+  "image_refs": {
+    "front": "path/or/url/front.jpg",
+    "back": "path/or/url/back.jpg",
+    "label": "path/or/url/label.jpg"
+  },
+  // OR base64-encoded strings:
+  // "images": { "front": "<base64>", "back": "<base64>", "label": "<base64>" },
+  "work_order": {
+    "wo_polybag": true,
+    "wo_suffocation_warning": true,
+    "wo_expiry_date": false,
+    "wo_handling_marks": ""
+  },
+  "force_reinspect": false
+}
+
+// Response: HTTP 200
+{
+  "task_id": "task-uuid-or-id",
+  "agent": "prep",
+  "status": "success",
+  "verdict": "PASS",
+  "explanation": "All applicable visual preparation checks are supported by the available evidence.",
+  "evidence": { ... },
+  "record": { ... },
+  "latency_ms": 3412.5
+}
+```
 
 ### Progressive Server-Sent Events (SSE) Protocol
 

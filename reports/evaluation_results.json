@@ -1,22 +1,22 @@
 {
-  "timestamp": "2026-10-01T15:52:47Z",
+  "timestamp": "2026-10-07T15:19:45Z",
   "validation_evaluation": {
     "split": "validation",
     "unit_count": 15,
-    "accuracy": 0.8667,
-    "macro_f1": 0.803,
+    "accuracy": 0.6667,
+    "macro_f1": 0.7168,
     "uncertain_rate": 0.1333,
-    "latency_mean_ms": 3154.83,
-    "latency_p95_ms": 3537.24,
+    "latency_mean_ms": 8736.89,
+    "latency_p95_ms": 10460.89,
     "confusion_matrix": {
       "PASS": {
-        "PASS": 1,
-        "FAIL": 1,
+        "PASS": 2,
+        "FAIL": 0,
         "UNCERTAIN": 0
       },
       "FAIL": {
-        "PASS": 1,
-        "FAIL": 10,
+        "PASS": 5,
+        "FAIL": 6,
         "UNCERTAIN": 0
       },
       "UNCERTAIN": {
@@ -27,20 +27,20 @@
     },
     "per_class_metrics": {
       "PASS": {
-        "TP": 1,
-        "FP": 1,
-        "FN": 1,
-        "precision": 0.5,
-        "recall": 0.5,
-        "f1": 0.5
+        "TP": 2,
+        "FP": 5,
+        "FN": 0,
+        "precision": 0.2857,
+        "recall": 1.0,
+        "f1": 0.4444
       },
       "FAIL": {
-        "TP": 10,
-        "FP": 1,
-        "FN": 1,
-        "precision": 0.9091,
-        "recall": 0.9091,
-        "f1": 0.9091
+        "TP": 6,
+        "FP": 0,
+        "FN": 5,
+        "precision": 1.0,
+        "recall": 0.5455,
+        "f1": 0.7059
       },
       "UNCERTAIN": {
         "TP": 2,
@@ -61,10 +61,10 @@
       },
       "correct_preparation": {
         "total": 2,
-        "correct": 1,
+        "correct": 2,
         "uncertain": 0,
-        "fail": 1,
-        "pass": 1
+        "fail": 0,
+        "pass": 2
       },
       "fnsku_on_seam": {
         "total": 2,
@@ -82,10 +82,10 @@
       },
       "missing_warning": {
         "total": 2,
-        "correct": 2,
+        "correct": 1,
         "uncertain": 0,
-        "fail": 2,
-        "pass": 0
+        "fail": 1,
+        "pass": 1
       },
       "handling_mark_missing": {
         "total": 1,
@@ -103,44 +103,44 @@
       },
       "fnsku_on_curve": {
         "total": 1,
-        "correct": 1,
+        "correct": 0,
         "uncertain": 0,
-        "fail": 1,
-        "pass": 0
+        "fail": 0,
+        "pass": 1
       },
       "fnsku_missing": {
         "total": 1,
-        "correct": 1,
+        "correct": 0,
         "uncertain": 0,
-        "fail": 1,
-        "pass": 0
+        "fail": 0,
+        "pass": 1
       },
       "missing_polybag": {
         "total": 1,
-        "correct": 1,
+        "correct": 0,
         "uncertain": 0,
-        "fail": 1,
-        "pass": 0
+        "fail": 0,
+        "pass": 1
       }
     }
   },
   "heldout_test_evaluation": {
     "split": "heldout",
     "unit_count": 15,
-    "accuracy": 0.7333,
-    "macro_f1": 0.7037,
+    "accuracy": 0.6667,
+    "macro_f1": 0.7203,
     "uncertain_rate": 0.2,
-    "latency_mean_ms": 3233.59,
-    "latency_p95_ms": 3646.85,
+    "latency_mean_ms": 6203.85,
+    "latency_p95_ms": 8974.16,
     "confusion_matrix": {
       "PASS": {
-        "PASS": 1,
-        "FAIL": 3,
+        "PASS": 4,
+        "FAIL": 0,
         "UNCERTAIN": 0
       },
       "FAIL": {
-        "PASS": 1,
-        "FAIL": 7,
+        "PASS": 5,
+        "FAIL": 3,
         "UNCERTAIN": 0
       },
       "UNCERTAIN": {
@@ -151,20 +151,20 @@
     },
     "per_class_metrics": {
       "PASS": {
-        "TP": 1,
-        "FP": 1,
-        "FN": 3,
-        "precision": 0.5,
-        "recall": 0.25,
-        "f1": 0.3333
+        "TP": 4,
+        "FP": 5,
+        "FN": 0,
+        "precision": 0.4444,
+        "recall": 1.0,
+        "f1": 0.6154
       },
       "FAIL": {
-        "TP": 7,
-        "FP": 3,
-        "FN": 1,
-        "precision": 0.7,
-        "recall": 0.875,
-        "f1": 0.7778
+        "TP": 3,
+        "FP": 0,
+        "FN": 5,
+        "precision": 1.0,
+        "recall": 0.375,
+        "f1": 0.5455
       },
       "UNCERTAIN": {
         "TP": 3,
@@ -178,10 +178,10 @@
     "failure_modes": {
       "correct_preparation": {
         "total": 4,
-        "correct": 1,
+        "correct": 4,
         "uncertain": 0,
-        "fail": 3,
-        "pass": 1
+        "fail": 0,
+        "pass": 4
       },
       "ambiguous_fnsku": {
         "total": 1,
@@ -199,17 +199,17 @@
       },
       "handling_mark_missing": {
         "total": 2,
-        "correct": 1,
+        "correct": 0,
         "uncertain": 0,
-        "fail": 1,
-        "pass": 1
+        "fail": 0,
+        "pass": 2
       },
       "fnsku_on_curve": {
         "total": 2,
-        "correct": 2,
+        "correct": 0,
         "uncertain": 0,
-        "fail": 2,
-        "pass": 0
+        "fail": 0,
+        "pass": 2
       },
       "ambiguous_polybag": {
         "total": 1,
@@ -227,10 +227,10 @@
       },
       "expiry_obscured": {
         "total": 1,
-        "correct": 1,
+        "correct": 0,
         "uncertain": 0,
-        "fail": 1,
-        "pass": 0
+        "fail": 0,
+        "pass": 1
       },
       "fnsku_on_seam": {
         "total": 1,

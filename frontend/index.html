@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CUBE PRP Manager · Inbound Amazon FBA Compliance Engine</title>
+  <meta name="description" content="Production Visual Inbound Prep Compliance, Optical Calibration & Defect Evidence Engine for Amazon FBA Inbound Prep.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <!-- Top Industrial Navigation Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="hazard-stripe-icon"></div>
+      <div class="brand-text">
+        <span class="brand-title">PRP MANAGER</span>
+        <span class="brand-subtitle">POD 02 · STEP 2 INBOUND PREP ENGINE</span>
+      </div>
+    </div>
+    
+    <div class="header-center">
+      <div class="pipeline-breadcrumbs">
+        <span id="crumb-1" class="crumb active" onclick="appState.navigateTo('home')">1. HOME</span>
+        <span class="crumb-separator">▶</span>
+        <span id="crumb-2" class="crumb" onclick="appState.navigateTo('upload')">2. UPLOAD</span>
+        <span class="crumb-separator">▶</span>
+        <span id="crumb-3" class="crumb" onclick="appState.navigateTo('results')">3. CONVEYOR SORTING</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="system-status-badge">
+        <span class="pulse-dot"></span>
+        <span id="gpu-status">GPU ONNX: DML ACTIVE</span>
+      </div>
+      <div class="tenant-selector-pill">
+        <span class="tenant-label">TENANT:</span>
+        <select id="tenant-select" onchange="appState.setTenant(this.value)">
+          <option value="org_demo_alpha" selected>Alpha Warehouse (org_demo_alpha)</option>
+          <option value="org_demo_bravo">Bravo Logistics (org_demo_bravo)</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Viewport Container -->
+  <main class="viewport-stage">
+
+    <!-- ========================================== -->
+    <!-- SCREEN 1: HOMEPAGE (WELCOME TO PRP MANAGER) -->
+    <!-- ========================================== -->
+    <section id="screen-home" class="screen-view active">
+      <div class="industrial-frame hero-frame">
+        <div class="corner-bracket top-left"></div>
+        <div class="corner-bracket top-right"></div>
+        <div class="corner-bracket bottom-left"></div>
+        <div class="corner-bracket bottom-right"></div>
+
+        <div class="welcome-box">
+          <div class="welcome-prefix">WELCOME TO</div>
+          <h1 class="welcome-title">PRP MANAGER</h1>
+          <p class="welcome-desc">
+            Visual Inbound Prep Compliance, Optical Calibration &amp; Defect Sorting Engine.
+            Sub-35ms ONNX Hardware Acceleration · Strict Amazon FBA Rule Evaluation.
+          </p>
+
+          <button id="btn-start" class="btn-industrial-primary" onclick="appState.navigateTo('upload')">
+            START ▶
+          </button>
+        </div>
+
+        <div class="footer-stats-ribbon">
+          <div class="stat-item">
+            <span class="stat-label">HARDWARE INFERENCE</span>
+            <span class="stat-value">DirectML / RTX 4060 GPU</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">CONTRACT SPEC</span>
+            <span class="stat-value">prep_evidence_contract.json</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">TARGET COST / UNIT</span>
+            <span class="stat-value">$0.00015 (Ceiling: $0.075)</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">TENANCY ENFORCEMENT</span>
+            <span class="stat-value">Multi-Tenant Row-Level Security</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- SCREEN 2: CHOOSE YOUR FILES (UPLOAD SCREEN) -->
+    <!-- ========================================== -->
+    <section id="screen-upload" class="screen-view">
+      <div class="upload-screen-container">
+        <div class="screen-title-ribbon">
+          <div class="stripe-bar left"></div>
+          <h2>CHOOSE YOUR FILES</h2>
+          <div class="stripe-bar right"></div>
+        </div>
+
+        <div class="upload-main-layout">
+          <!-- Left: Central Dropzone Vault -->
+          <div class="dropzone-vault-card" id="drop-zone"
+               ondragover="appState.handleDragOver(event)" 
+               ondragleave="appState.handleDragLeave(event)" 
+               ondrop="appState.handleDrop(event)">
+            
+            <div class="vault-inner-border">
+              <div class="folder-icon-graphic">
+                <svg width="68" height="68" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                  <line x1="12" y1="11" x2="12" y2="17"></line>
+                  <line x1="9" y1="14" x2="15" y2="14"></line>
+                </svg>
+              </div>
+
+              <h3 class="dropzone-primary-text">Drag &amp; drop your files here</h3>
+              <p class="dropzone-secondary-text">or click to browse from workstation</p>
+
+              <input type="file" id="file-input-multi" multiple accept="image/*" style="display:none" onchange="appState.handleFilesSelected(this.files)">
+              
+              <button class="btn-industrial-secondary" onclick="document.getElementById('file-input-multi').click()">
+                <span class="btn-icon">📁</span> Choose Files
+              </button>
+            </div>
+
+            <!-- 3 View Slots Preview -->
+            <div class="view-slots-preview">
+              <div class="slot-box" id="slot-front">
+                <span class="slot-tag">VIEW 1: FRONT</span>
+                <div class="slot-thumb" id="thumb-front">No file</div>
+              </div>
+              <div class="slot-box" id="slot-back">
+                <span class="slot-tag">VIEW 2: BACK</span>
+                <div class="slot-thumb" id="thumb-back">No file</div>
+              </div>
+              <div class="slot-box" id="slot-label">
+                <span class="slot-tag">VIEW 3: LABEL</span>
+                <div class="slot-thumb" id="thumb-label">No file</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Presets & Work Order Configuration -->
+          <div class="upload-sidebar-panel">
+            <div class="sidebar-section">
+              <h4 class="section-heading">⚡ QUICK PRESET DEMO UNITS (1-CLICK TEST)</h4>
+              <p class="section-subtext">Instantly test actual dataset units across PASS, FAIL, and UNCERTAIN scenarios:</p>
+              
+              <div class="preset-cards-list" id="preset-list">
+                <!-- Dynamically loaded from /api/v1/dataset/samples -->
+                <div class="preset-card pass" onclick="appState.selectPreset('UNIT-0001')">
+                  <div class="preset-badge pass">PASS</div>
+                  <div class="preset-info">
+                    <strong>UNIT-0001 (Electronics)</strong>
+                    <span>Correct Amazon FBA prep, polybag sealed, FNSKU flat</span>
+                  </div>
+                </div>
+
+                <div class="preset-card fail" onclick="appState.selectPreset('UNIT-0003')">
+                  <div class="preset-badge fail">FAIL</div>
+                  <div class="preset-info">
+                    <strong>UNIT-0003 (Kitchenware)</strong>
+                    <span>Defect: FNSKU label overlaps center package seam</span>
+                  </div>
+                </div>
+
+                <div class="preset-card fail" onclick="appState.selectPreset('UNIT-0008')">
+                  <div class="preset-badge fail">FAIL</div>
+                  <div class="preset-info">
+                    <strong>UNIT-0008 (Home Goods)</strong>
+                    <span>Defect: Manufacturer original barcode uncovered</span>
+                  </div>
+                </div>
+
+                <div class="preset-card uncertain" onclick="appState.selectPreset('UNIT-0004')">
+                  <div class="preset-badge uncertain">UNCERTAIN</div>
+                  <div class="preset-info">
+                    <strong>UNIT-0004 (Home Goods)</strong>
+                    <span>Abstention: Ambiguous fold &amp; glare on label</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sidebar-section">
+              <h4 class="section-heading">📋 ACTIVE WORK ORDER PARAMETERS</h4>
+              <div class="form-grid">
+                <label>Unit ID:
+                  <input type="text" id="wo-unit-id" value="UNIT-0001">
+                </label>
+                <label>Work Order:
+                  <input type="text" id="wo-id" value="WO-3000">
+                </label>
+                <div class="checkbox-row">
+                  <label><input type="checkbox" id="wo-polybag" checked> Polybag Req.</label>
+                  <label><input type="checkbox" id="wo-warning" checked> Warning Req.</label>
+                  <label><input type="checkbox" id="wo-expiry"> Expiry Date</label>
+                </div>
+              </div>
+
+              <div class="action-buttons-group">
+                <button id="btn-submit-inspection" class="btn-industrial-primary full-width" onclick="appState.runInspection()">
+                  RUN INBOUND INSPECTION ▶
+                </button>
+                <button class="btn-industrial-ghost" onclick="appState.navigateTo('home')">
+                  ◀ Back to Home
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Progressive Streaming Overlay Modal -->
+        <div id="streaming-overlay" class="streaming-hud-overlay" style="display:none">
+          <div class="hud-box">
+            <div class="hud-header">
+              <span class="hud-title">REAL-TIME INSPECTION PIPELINE ACTIVE</span>
+              <span id="hud-progress-percent">0%</span>
+            </div>
+            
+            <div class="hud-progress-bar-track">
+              <div id="hud-progress-bar" class="hud-progress-bar-fill" style="width: 0%"></div>
+            </div>
+
+            <div class="milestones-steps-list">
+              <div id="ms-started" class="ms-step pending">
+                <span class="ms-indicator">○</span>
+                <span class="ms-text">Stream Ingestion &amp; Optical Calibration</span>
+              </div>
+              <div id="ms-front" class="ms-step pending">
+                <span class="ms-indicator">○</span>
+                <span class="ms-text">Front Perspective: Package Bounds &amp; Polybag Seal</span>
+              </div>
+              <div id="ms-back" class="ms-step pending">
+                <span class="ms-indicator">○</span>
+                <span class="ms-text">Back Perspective: Barcode Concealment</span>
+              </div>
+              <div id="ms-label" class="ms-step pending">
+                <span class="ms-indicator">○</span>
+                <span class="ms-text">Macro Label: FNSKU Flatness &amp; OCR Verification</span>
+              </div>
+              <div id="ms-completed" class="ms-step pending">
+                <span class="ms-indicator">○</span>
+                <span class="ms-text">Rule Engine Evaluation &amp; Evidence Generation</span>
+              </div>
+            </div>
+
+            <div class="hud-footer-log" id="hud-status-message">Initializing inference session...</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- SCREEN 3: RESULTS (CONVEYOR BELT SORTING) -->
+    <!-- ========================================== -->
+    <section id="screen-results" class="screen-view">
+      <div class="conveyor-screen-container">
+        
+        <!-- Overhead Control Header -->
+        <div class="conveyor-hud-bar">
+          <div class="hud-unit-tag">
+            <span>PROCESSED UNIT:</span>
+            <strong id="results-unit-id">UNIT-0001</strong>
+          </div>
+          <div class="hud-instruction">
+            <span class="pulse-icon">👆</span>
+            <strong>DOUBLE-CLICK THE CARDBOARD BOX ON THE CONVEYOR TO OPEN DEEP INSPECTION EVIDENCE</strong>
+          </div>
+          <div class="hud-actions">
+            <button class="btn-small-ghost" onclick="appState.navigateTo('upload')">◀ New Upload</button>
+            <button class="btn-small-primary" onclick="appState.openModal()">Open 3-Box View</button>
+          </div>
+        </div>
+
+        <!-- Factory Sorting Floor Canvas / Background -->
+        <div class="conveyor-factory-stage" id="factory-floor">
+          <div class="conveyor-bg-layer"></div>
+
+          <!-- Overhead Animated Sorting System Overlay -->
+          <div class="conveyor-sorting-system">
+            
+            <!-- Inbound Conveyor Track (Left) -->
+            <div class="conveyor-track track-inbound">
+              <div class="roller-lines"></div>
+              <div class="conveyor-arrow">▶</div>
+              <div class="conveyor-arrow">▶</div>
+              <div class="conveyor-arrow">▶</div>
+            </div>
+
+            <!-- Central Diverter Junction -->
+            <div class="conveyor-diverter-node" id="diverter-node">
+              <div class="junction-disc"></div>
+            </div>
+
+            <!-- Upper Track: FAILED (Red) -->
+            <div class="conveyor-track track-failed" id="track-failed">
+              <div class="track-light-rail red"></div>
+              <div class="bin-station bin-failed">
+                <div class="bin-indicator red">
+                  <span class="bin-icon">❌</span>
+                  <span class="bin-label">FAILED</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Lower Track: PASSED (Green) -->
+            <div class="conveyor-track track-passed" id="track-passed">
+              <div class="track-light-rail green"></div>
+              <div class="bin-station bin-passed">
+                <div class="bin-indicator green">
+                  <span class="bin-icon">✔</span>
+                  <span class="bin-label">PASSED</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Middle Station: UNCERTAIN (Amber / Review) -->
+            <div class="conveyor-track track-uncertain" id="track-uncertain" style="display:none">
+              <div class="track-light-rail amber"></div>
+              <div class="bin-station bin-uncertain">
+                <div class="bin-indicator amber">
+                  <span class="bin-icon">⚠️</span>
+                  <span class="bin-label">PENDING REVIEW</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- ============================================== -->
+            <!-- THE PROCESSED CARDBOARD BOX (Double-Click Target)-->
+            <!-- ============================================== -->
+            <div id="cardboard-box" class="cardboard-box"
+                 title="Double-click to open 3-Box Inspection Evidence"
+                 ondblclick="appState.openModal()"
+                 onclick="appState.onBoxSingleClick()">
+              
+              <div class="box-face box-top">
+                <div class="tape-strip"></div>
+                <div class="shipping-label-sticker">
+                  <div class="label-barcode-bars"></div>
+                  <span id="box-label-text" class="label-code">UNIT-0001</span>
+                </div>
+              </div>
+              <div class="box-face box-front">
+                <div class="box-brand-stamp">📦 CUBE PRP</div>
+                <div id="box-verdict-tag" class="verdict-tag pass">PASSED</div>
+              </div>
+              <div class="box-shadow"></div>
+
+              <!-- Interactive Floating Tooltip -->
+              <div class="box-floating-callout">
+                <span class="callout-arrow">▼</span>
+                <span class="callout-text">Double-Click Box</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Bottom Verdict Summary Strip -->
+        <div class="conveyor-verdict-footer" id="verdict-footer">
+          <div class="footer-left">
+            <span class="summary-label">OVERALL COMPLIANCE STATUS:</span>
+            <span id="footer-status-badge" class="verdict-badge pass">PASS</span>
+          </div>
+          <div class="footer-middle">
+            <span class="summary-label">ISSUE EXPLANATION:</span>
+            <span id="footer-explanation" class="summary-explanation">Package conforms to all Amazon FBA preparation guidelines.</span>
+          </div>
+          <div class="footer-right">
+            <button class="btn-industrial-secondary" onclick="appState.openModal()">
+              🔍 Open Deep Inspection (3-Box View)
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================================================== -->
+  <!-- THE 3-BOX DEEP INSPECTION MODAL (TRIGGERED ON BOX DOUBLE-CLICK)-->
+  <!-- ============================================================== -->
+  <div id="inspection-modal" class="modal-backdrop" style="display:none">
+    <div class="modal-window">
+      
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-unit-tag">
+            <span class="tag-label">EVIDENCE RECORD:</span>
+            <strong id="modal-record-id">PRP-0001</strong>
+            <span class="unit-code-sub" id="modal-unit-id">(UNIT-0001)</span>
+          </div>
+          <div id="modal-verdict-badge" class="verdict-badge pass">PASS</div>
+        </div>
+
+        <div class="modal-header-right">
+          <button class="btn-modal-action" onclick="appState.downloadContractJSON()">
+            📥 Export Contract JSON
+          </button>
+          <button class="btn-modal-close" onclick="appState.closeModal()">✕</button>
+        </div>
+      </div>
+
+      <!-- THE THREE BOXES GRID -->
+      <div class="three-boxes-grid">
+        
+        <!-- ---------------------------------------------------- -->
+        <!-- BOX 1: THE ORIGINAL IMAGE                            -->
+        <!-- ---------------------------------------------------- -->
+        <div class="evidence-box box-1-original">
+          <div class="box-ribbon-title">
+            <span class="box-number">BOX 1</span>
+            <span class="box-title">ORIGINAL PHYSICAL CAPTURE</span>
+          </div>
+
+          <!-- View Tabs -->
+          <div class="view-tabs-row">
+            <button class="view-tab active" id="tab-btn-front" onclick="appState.switchModalView('front')">Front View</button>
+            <button class="view-tab" id="tab-btn-back" onclick="appState.switchModalView('back')">Back View</button>
+            <button class="view-tab" id="tab-btn-label" onclick="appState.switchModalView('label')">Macro Label</button>
+          </div>
+
+          <!-- Image Display Stage -->
+          <div class="original-image-viewport">
+            <img id="modal-original-img" src="" alt="Original Camera Capture">
+          </div>
+
+          <!-- Image Quality & Calibration Metadata -->
+          <div class="box-metadata-panel">
+            <div class="meta-row">
+              <span class="meta-k">Laplacian Blur Variance:</span>
+              <span class="meta-v" id="meta-blur">-- (Min Threshold: 25.0)</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-k">Specular Glare Ratio:</span>
+              <span class="meta-v" id="meta-glare">--</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-k">Optical Calibration:</span>
+              <span class="meta-v" id="meta-calibrated">VERIFIED</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-k">Tenancy Scope:</span>
+              <span class="meta-v" id="meta-tenant">org_demo_alpha</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---------------------------------------------------- -->
+        <!-- BOX 2: WHAT THE ML INFERRED FROM IT                  -->
+        <!-- ---------------------------------------------------- -->
+        <div class="evidence-box box-2-inferred">
+          <div class="box-ribbon-title">
+            <span class="box-number">BOX 2</span>
+            <span class="box-title">WHAT ML INFERRED FROM IT</span>
+          </div>
+
+          <!-- Inferred Overlay Canvas -->
+          <div class="inferred-canvas-viewport">
+            <canvas id="inferred-canvas"></canvas>
+            <div id="canvas-overlay-legend" class="canvas-legend">
+              <span class="legend-chip cyan">■ Package Bounds</span>
+              <span class="legend-chip magenta">■ FNSKU Label</span>
+              <span class="legend-chip blue">■ Polybag</span>
+              <span class="legend-chip yellow">■ Barcode</span>
+            </div>
+          </div>
+
+          <!-- Deterministic Spatial Measurements Table -->
+          <div class="inferred-details-list">
+            <h5 class="sub-heading">Deterministic OpenCV Spatial Measurements</h5>
+            
+            <div class="measurement-card" id="m-fnsku">
+              <div class="m-card-title">FNSKU Alignment &amp; Seam IoU</div>
+              <div class="m-metric-row">
+                <span>Distance to Nearest Edge:</span>
+                <strong id="m-val-edge">-- px</strong>
+              </div>
+              <div class="m-metric-row">
+                <span>Center Seam Overlap IoU:</span>
+                <strong id="m-val-seam">-- %</strong>
+              </div>
+              <div class="m-metric-row">
+                <span>Surface Curvature Score:</span>
+                <strong id="m-val-curve">--</strong>
+              </div>
+            </div>
+
+            <div class="measurement-card" id="m-ocr">
+              <div class="m-card-title">Extracted Text &amp; Barcodes</div>
+              <div class="m-metric-row">
+                <span>FNSKU / Barcode Value:</span>
+                <strong id="m-val-barcode">--</strong>
+              </div>
+              <div class="m-metric-row">
+                <span>Suffocation Warning Text:</span>
+                <strong id="m-val-warning">--</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---------------------------------------------------- -->
+        <!-- BOX 3: COMPLETE ML OUTPUT & PASS/FAIL STATUS         -->
+        <!-- ---------------------------------------------------- -->
+        <div class="evidence-box box-3-output">
+          <div class="box-ribbon-title">
+            <span class="box-number">BOX 3</span>
+            <span class="box-title">COMPLETE ML COMPLIANCE OUTPUT</span>
+          </div>
+
+          <!-- Overall Status Hero Card -->
+          <div class="compliance-summary-hero pass" id="modal-hero-card">
+            <div class="hero-verdict-title" id="modal-verdict-large">PASS</div>
+            <div class="hero-workflow-state" id="modal-workflow-state">WORKFLOW: COMPLETED</div>
+            <p class="hero-explanation" id="modal-explanation-text">
+              Preparation fully compliant with Amazon Inbound FBA rules.
+            </p>
+          </div>
+
+          <!-- Identified Issues / Failure Reasons -->
+          <div class="failures-section" id="modal-failures-section" style="display:none">
+            <h5 class="sub-heading-alert">IDENTIFIED ISSUES &amp; DEFECTS</h5>
+            <ul class="failure-reasons-list" id="modal-failure-list">
+              <!-- Itemized failure reasons -->
+            </ul>
+          </div>
+
+          <!-- 6 Amazon FBA Rule Checks Breakdown -->
+          <div class="fba-checks-list" id="modal-checks-list">
+            <h5 class="sub-heading">Amazon FBA Inbound Rule Checks</h5>
+            
+            <div class="check-item" id="check-polybag">
+              <div class="check-item-head">
+                <span class="check-name">1. Polybag Present &amp; Sealed</span>
+                <span class="check-pill pass">PASS</span>
+              </div>
+              <div class="check-detail">Verified present and airtight seal confirmed.</div>
+            </div>
+
+            <div class="check-item" id="check-warning">
+              <div class="check-item-head">
+                <span class="check-name">2. Suffocation Warning</span>
+                <span class="check-pill pass">PASS</span>
+              </div>
+              <div class="check-detail">Suffocation warning present, unobstructed and legible.</div>
+            </div>
+
+            <div class="check-item" id="check-fnsku">
+              <div class="check-item-head">
+                <span class="check-name">3. FNSKU Label Placement</span>
+                <span class="check-pill pass">PASS</span>
+              </div>
+              <div class="check-detail">Label placed on flat face without seam fold.</div>
+            </div>
+
+            <div class="check-item" id="check-barcode">
+              <div class="check-item-head">
+                <span class="check-name">4. Original Barcode Concealment</span>
+                <span class="check-pill pass">PASS</span>
+              </div>
+              <div class="check-detail">Original manufacturer barcode completely covered.</div>
+            </div>
+
+            <div class="check-item" id="check-expiry">
+              <div class="check-item-head">
+                <span class="check-name">5. Expiry Date Legibility</span>
+                <span class="check-pill not_req">NOT REQUIRED</span>
+              </div>
+              <div class="check-detail">Not applicable for non-perishable product category.</div>
+            </div>
+
+            <div class="check-item" id="check-handling">
+              <div class="check-item-head">
+                <span class="check-name">6. Handling Marks</span>
+                <span class="check-pill not_req">NOT REQUIRED</span>
+              </div>
+              <div class="check-detail">No special handling marks mandated by work order.</div>
+            </div>
+          </div>
+
+          <!-- Unit Economics & Audit Override Action -->
+          <div class="box-footer-economics">
+            <div class="econ-stats">
+              <span>Latency: <strong id="modal-latency">-- ms</strong></span>
+              <span>Cost: <strong id="modal-cost">$0.00015</strong> (Target: &le;$0.075)</span>
+            </div>
+
+            <div class="override-panel-inline">
+              <button class="btn-secondary-danger" onclick="appState.promptOverride()">
+                ✏ Record Human Override (Rule 2)
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="modal-footer-bar">
+        <button class="btn-industrial-secondary" onclick="appState.closeModal()">Close Inspector</button>
+        <button class="btn-industrial-primary" onclick="appState.closeModal(); appState.navigateTo('upload');">
+          Inspect Next Package ▶
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
