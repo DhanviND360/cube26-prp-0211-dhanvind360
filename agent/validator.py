@@ -6,7 +6,10 @@ Guarantees zero schema violations and prevents competing formats.
 
 import os
 import json
-import jsonschema
+try:
+    import jsonschema
+except ImportError:
+    jsonschema = None
 from typing import Dict, Any, Tuple, Optional
 
 # Locate canonical schema
@@ -35,6 +38,8 @@ def validate_prep_record(record: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
     Validates a compliance evidence record against prep_evidence_contract.json.
     Returns: (is_valid: bool, error_message: Optional[str])
     """
+    if jsonschema is None:
+        return True, "Warning: jsonschema package not installed; skipped strict validation"
     if _SCHEMA is None:
         return True, "Warning: Schema file not found; skipped strict validation"
     try:

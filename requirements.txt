@@ -13,3 +13,4 @@ pytesseract>=0.3.10
 pyzbar>=0.1.9
 easyocr>=1.7.1
 supabase>=2.3.0
+jsonschema>=4.20.0
