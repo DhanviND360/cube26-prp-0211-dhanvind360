@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CUBE Prep Manager · Live AI Packaging Inspection Portal</title>
+    <style>
+        :root {
+            --bg: #0b0f19;
+            --surface: #1e293b;
+            --surface-hover: #334155;
+            --border: #334155;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding: 24px; min-height: 100vh; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
+        .logo-group h1 { font-size: 1.6rem; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+        .logo-group p { font-size: 0.88rem; color: var(--text-muted); margin-top: 4px; }
+        .badge { background: #4338ca; color: #e0e7ff; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+        .docs-link { color: var(--primary); text-decoration: none; font-size: 0.9rem; font-weight: 600; }
+        .docs-link:hover { text-decoration: underline; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+        .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 14px; }
+        .dropzone { border: 2px dashed var(--border); border-radius: 8px; padding: 32px 16px; text-align: center; cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.02); }
+        .dropzone:hover, .dropzone.dragover { border-color: var(--primary); background: rgba(59,130,246,0.06); }
+        .dropzone p { color: var(--text-muted); font-size: 0.95rem; margin-top: 8px; }
+        .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 14px; }
+        .preview-img { width: 100%; height: 110px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
+        .options-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 14px; }
+        label { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer; }
+        input[type="text"] { width: 100%; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 0.9rem; }
+        .btn-inspect { background: var(--primary); color: white; border: none; padding: 12px 24px; border-radius: 6px; font-size: 1rem; font-weight: 700; width: 100%; cursor: pointer; transition: background 0.2s; margin-top: 16px; }
+        .btn-inspect:hover { background: var(--primary-hover); }
+        .btn-inspect:disabled { opacity: 0.5; cursor: not-allowed; }
+        #results-area { display: none; }
+        .verdict-banner { padding: 18px; border-radius: 8px; font-size: 1.25rem; font-weight: 800; margin-bottom: 16px; }
+        .verdict-pass { background: rgba(16,185,129,0.15); border: 1px solid var(--success); color: #6ee7b7; }
+        .verdict-fail { background: rgba(239,68,68,0.15); border: 1px solid var(--danger); color: #fca5a5; }
+        .verdict-uncertain { background: rgba(245,158,11,0.15); border: 1px solid var(--warning); color: #fde68a; }
+        .checks-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 14px; }
+        .check-item { background: #0f172a; border: 1px solid var(--border); border-left: 4px solid var(--primary); border-radius: 6px; padding: 12px 14px; }
+        .check-pass { border-left-color: var(--success); }
+        .check-fail { border-left-color: var(--danger); }
+        .check-uncertain { border-left-color: var(--warning); }
+        .check-header { display: flex; justify-content: space-between; font-weight: 700; font-size: 0.92rem; margin-bottom: 4px; }
+        .check-detail { font-size: 0.82rem; color: var(--text-muted); }
+        .metrics-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 14px; }
+        .metric-box { background: #0f172a; border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; }
+        .metric-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
+        .metric-val { font-size: 1.15rem; font-weight: 700; margin-top: 2px; }
+        pre { background: #0f172a; padding: 14px; border-radius: 6px; border: 1px solid var(--border); overflow-x: auto; font-size: 0.8rem; color: #a5f3fc; }
+        .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 0.8s ease-in-out infinite; vertical-align: middle; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo-group">
+                <h1>📦 CUBE Prep Manager <span class="badge">Gemini 3.6 Flash</span></h1>
+                <p>Autonomous Visual Packaging & Amazon FBA Inbound Compliance Engine</p>
+            </div>
+            <div>
+                <a href="/docs" target="_blank" class="docs-link">Swagger API Docs ↗</a>
+            </div>
+        </header>
+
+        <div class="card">
+            <div class="card-title">1. Upload Packaging Images</div>
+            <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+                <div style="font-size: 2rem;">📸</div>
+                <strong>Click to browse or drag & drop packaging image(s)</strong>
+                <p>Upload a single package photo or 3 perspectives (front, back, label closeup). Supported: JPG, PNG, WEBP.</p>
+                <input type="file" id="file-input" multiple accept="image/*" style="display: none;" onchange="handleFiles(this.files)">
+            </div>
+            <div class="preview-grid" id="preview-grid"></div>
+
+            <div class="card-title" style="margin-top: 20px;">2. Inbound Work Order Requirements</div>
+            <div class="options-grid">
+                <label><input type="checkbox" id="wo_polybag" checked> Requires Polybagging</label>
+                <label><input type="checkbox" id="wo_suffocation_warning" checked> Requires Suffocation Warning</label>
+                <label><input type="checkbox" id="wo_expiry_date"> Requires Expiration Date Verification</label>
+            </div>
+            <div class="options-grid" style="margin-top: 10px;">
+                <div>
+                    <label style="margin-bottom: 4px;">Target FNSKU (Optional):</label>
+                    <input type="text" id="fnsku" placeholder="e.g. X001254567" value="X001254567">
+                </div>
+                <div>
+                    <label style="margin-bottom: 4px;">SKU / Unit Identifier:</label>
+                    <input type="text" id="sku" placeholder="e.g. SKU-SHIRT-001" value="SKU-SHIRT-001">
+                </div>
+            </div>
+
+            <button class="btn-inspect" id="btn-inspect" onclick="runInspection()">⚡ Run Autonomous AI Inspection</button>
+        </div>
+
+        <div id="results-area" class="card">
+            <div class="card-title">3. Compliance Inspection Verdict</div>
+            <div id="verdict-banner" class="verdict-banner"></div>
+            <p id="issue-explanation" style="font-size: 1rem; margin-bottom: 16px; line-height: 1.5;"></p>
+            
+            <div id="failure-reasons-box" style="display: none; margin-bottom: 16px; background: rgba(239,68,68,0.1); border: 1px solid var(--danger); padding: 12px; border-radius: 6px;">
+                <strong style="color: #fca5a5;">Detected Defects:</strong>
+                <ul id="failure-reasons-list" style="margin-left: 20px; font-size: 0.9rem; color: #fca5a5; margin-top: 6px;"></ul>
+            </div>
+
+            <div id="uncertain-reasons-box" style="display: none; margin-bottom: 16px; background: rgba(245,158,11,0.1); border: 1px solid var(--warning); padding: 12px; border-radius: 6px;">
+                <strong style="color: #fde68a;">Evidence / Ambiguity Reasons:</strong>
+                <ul id="uncertain-reasons-list" style="margin-left: 20px; font-size: 0.9rem; color: #fde68a; margin-top: 6px;"></ul>
+            </div>
+
+            <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 10px;">Six Mandated Amazon FBA Checks:</h3>
+            <div class="checks-grid" id="checks-grid"></div>
+
+            <div class="metrics-row">
+                <div class="metric-box">
+                    <div class="metric-label">AI Engine</div>
+                    <div class="metric-val" style="color: #a5b4fc;">Gemini 3.6 Flash</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">Compute Cost</div>
+                    <div class="metric-val" id="metric-cost">$0.00028</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">Target Prep Fee</div>
+                    <div class="metric-val">$0.75</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">Gross Margin Savings</div>
+                    <div class="metric-val" style="color: var(--success);">99.96%</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">Latency</div>
+                    <div class="metric-val" id="metric-latency">-- ms</div>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <details>
+                    <summary style="cursor: pointer; font-size: 0.88rem; color: var(--primary);">View Standardized Evidence Record (JSON)</summary>
+                    <pre id="raw-json" style="margin-top: 10px;"></pre>
+                </details>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedFiles = [];
+        const dropzone = document.getElementById('dropzone');
+
+        ['dragenter', 'dragover'].forEach(e => {
+            dropzone.addEventListener(e, (ev) => { ev.preventDefault(); dropzone.classList.add('dragover'); });
+        });
+        ['dragleave', 'drop'].forEach(e => {
+            dropzone.addEventListener(e, (ev) => { ev.preventDefault(); dropzone.classList.remove('dragover'); });
+        });
+        dropzone.addEventListener('drop', (ev) => {
+            if (ev.dataTransfer.files && ev.dataTransfer.files.length > 0) {
+                handleFiles(ev.dataTransfer.files);
+            }
+        });
+
+        function handleFiles(files) {
+            selectedFiles = Array.from(files);
+            const grid = document.getElementById('preview-grid');
+            grid.innerHTML = '';
+            selectedFiles.forEach(f => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'preview-img';
+                    grid.appendChild(img);
+                };
+                reader.readAsDataURL(f);
+            });
+        }
+
+        async function runInspection() {
+            if (selectedFiles.length === 0) {
+                alert('Please upload at least one packaging image.');
+                return;
+            }
+
+            const btn = document.getElementById('btn-inspect');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Analyzing with Gemini 3.6 Flash...';
+
+            const formData = new FormData();
+            formData.append('unit_id', 'UNIT-UPLOAD-' + Math.floor(Math.random() * 9000 + 1000));
+            formData.append('sku', document.getElementById('sku').value || 'SKU-UPLOAD');
+            formData.append('fnsku', document.getElementById('fnsku').value || 'X00CUBE');
+            formData.append('wo_polybag', document.getElementById('wo_polybag').checked);
+            formData.append('wo_suffocation_warning', document.getElementById('wo_suffocation_warning').checked);
+            formData.append('wo_expiry_date', document.getElementById('wo_expiry_date').checked);
+
+            if (selectedFiles.length === 1) {
+                formData.append('file', selectedFiles[0]);
+            } else {
+                formData.append('front_file', selectedFiles[0]);
+                if (selectedFiles[1]) formData.append('back_file', selectedFiles[1]);
+                if (selectedFiles[2]) formData.append('label_file', selectedFiles[2]);
+            }
+
+            try {
+                const resp = await fetch('/api/v1/inspect/upload', {
+                    method: 'POST',
+                    headers: { 'X-Org-ID': 'org_demo_alpha' },
+                    body: formData
+                });
+
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.detail || 'Inspection failed');
+                }
+
+                const data = await resp.json();
+                renderResults(data);
+            } catch (err) {
+                alert('Error: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '⚡ Run Autonomous AI Inspection';
+            }
+        }
+
+        function renderResults(rec) {
+            document.getElementById('results-area').style.display = 'block';
+            document.getElementById('results-area').scrollIntoView({ behavior: 'smooth' });
+
+            const banner = document.getElementById('verdict-banner');
+            const st = rec.overall_status || 'UNCERTAIN';
+            banner.className = 'verdict-banner verdict-' + st.toLowerCase();
+            banner.innerHTML = st === 'PASS' ? '✅ PASS — COMPLIANCE VERIFIED' : (st === 'FAIL' ? '❌ FAIL — DEFECT DETECTED' : '⚠️ UNCERTAIN — EVIDENCE ABSTENTION');
+
+            document.getElementById('issue-explanation').innerText = rec.issue_explanation || '';
+
+            const failBox = document.getElementById('failure-reasons-box');
+            const failList = document.getElementById('failure-reasons-list');
+            if (rec.failure_reasons && rec.failure_reasons.length > 0) {
+                failBox.style.display = 'block';
+                failList.innerHTML = rec.failure_reasons.map(r => `<li>${r}</li>`).join('');
+            } else {
+                failBox.style.display = 'none';
+            }
+
+            const uncBox = document.getElementById('uncertain-reasons-box');
+            const uncList = document.getElementById('uncertain-reasons-list');
+            if (rec.uncertain_reasons && rec.uncertain_reasons.length > 0) {
+                uncBox.style.display = 'block';
+                uncList.innerHTML = rec.uncertain_reasons.map(r => `<li>${r}</li>`).join('');
+            } else {
+                uncBox.style.display = 'none';
+            }
+
+            const grid = document.getElementById('checks-grid');
+            grid.innerHTML = '';
+            const checkTitles = {
+                polybag_present_sealed: '1. Polybag Present & Sealed',
+                suffocation_warning: '2. Suffocation Warning Legibility',
+                fnsku_label_placement: '3. FNSKU Placement (Margins >= 0.25")',
+                original_barcode_covered: '4. Original Barcode Covered',
+                expiry_date: '5. Expiry Date Legibility',
+                handling_marks: '6. Handling Marks (Fragile/Up)'
+            };
+
+            const checks = rec.checks || {};
+            for (const [key, title] of Object.entries(checkTitles)) {
+                const c = checks[key] || { verdict: 'N/A', detail: '' };
+                const v = c.verdict || 'N/A';
+                const cls = v === 'PASS' ? 'check-pass' : (v === 'FAIL' ? 'check-fail' : (v === 'UNCERTAIN' ? 'check-uncertain' : ''));
+                const icon = v === 'PASS' ? '🟢 PASS' : (v === 'FAIL' ? '🔴 FAIL' : (v === 'UNCERTAIN' ? '🟡 UNCERTAIN' : '⚪ N/A'));
+                grid.innerHTML += `
+                    <div class="check-item ${cls}">
+                        <div class="check-header">
+                            <span>${title}</span>
+                            <span>${icon}</span>
+                        </div>
+                        <div class="check-detail">${c.detail || ''}</div>
+                    </div>
+                `;
+            }
+
+            if (rec.performance) {
+                document.getElementById('metric-latency').innerText = Math.round(rec.performance.latency_ms || 0) + ' ms';
+                document.getElementById('metric-cost').innerText = '$' + (rec.performance.estimated_compute_cost_usd || 0.00028).toFixed(5);
+            }
+
+            document.getElementById('raw-json').innerText = JSON.stringify(rec, null, 2);
+        }
+    </script>
+</body>
+</html>

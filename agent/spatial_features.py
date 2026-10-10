@@ -23,8 +23,17 @@ Calculates:
 import re
 import cv2
 import numpy as np
-import pytesseract
-import pyzbar.pyzbar as pyzbar
+try:
+    import pytesseract
+    _TESSERACT_AVAILABLE = True
+except ImportError:
+    _TESSERACT_AVAILABLE = False
+
+try:
+    import pyzbar.pyzbar as pyzbar
+    _PYZBAR_AVAILABLE = True
+except ImportError:
+    _PYZBAR_AVAILABLE = False
 
 # Try to import easyocr, but make it optional for lightweight deployments
 try:
@@ -154,26 +163,27 @@ class SpatialFeatureExtractor:
                 pass
 
         # Complement with Tesseract (better for structured/printed text)
-        try:
-            d = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
-            n_boxes = len(d['text'])
-            for i in range(n_boxes):
-                txt = d['text'][i].strip()
-                conf_val = float(d['conf'][i]) if d['conf'][i] != '-1' else 0.0
-                if txt and len(txt) > 1 and conf_val > 10:
-                    key = txt.upper()
-                    if key not in seen_texts:
-                        seen_texts.add(key)
-                        full_text_parts.append(txt)
-                    tokens.append({
-                        "text": txt,
-                        "box": [int(d['left'][i]), int(d['top'][i]),
-                                max(1, int(d['width'][i])), max(1, int(d['height'][i]))],
-                        "conf": conf_val / 100.0,  # normalize to 0-1
-                        "source": "tesseract"
-                    })
-        except Exception:
-            pass
+        if _TESSERACT_AVAILABLE:
+            try:
+                d = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
+                n_boxes = len(d['text'])
+                for i in range(n_boxes):
+                    txt = d['text'][i].strip()
+                    conf_val = float(d['conf'][i]) if d['conf'][i] != '-1' else 0.0
+                    if txt and len(txt) > 1 and conf_val > 10:
+                        key = txt.upper()
+                        if key not in seen_texts:
+                            seen_texts.add(key)
+                            full_text_parts.append(txt)
+                        tokens.append({
+                            "text": txt,
+                            "box": [int(d['left'][i]), int(d['top'][i]),
+                                    max(1, int(d['width'][i])), max(1, int(d['height'][i]))],
+                            "conf": conf_val / 100.0,  # normalize to 0-1
+                            "source": "tesseract"
+                        })
+            except Exception:
+                pass
 
         return tokens, " ".join(full_text_parts)
 
@@ -181,7 +191,7 @@ class SpatialFeatureExtractor:
 
     def detect_barcodes(self, image):
         """Decode barcodes using pyzbar. Returns list of decoded barcode dicts."""
-        if image is None or image.size == 0:
+        if image is None or image.size == 0 or not _PYZBAR_AVAILABLE:
             return []
         found = []
         try:

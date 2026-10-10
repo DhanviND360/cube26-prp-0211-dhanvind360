@@ -51,12 +51,27 @@ class Settings(BaseSettings):
     REQUIRE_AUTH: bool = Field(default=False, description="Whether to enforce API key in production")
     SERVER_API_KEY: str = Field(default="", description="Server API key secret")
     
+    # Gemini AI Agent Configuration
+    GEMINI_API_KEY: str = Field(default="", description="Gemini API Key")
+    GEMINI_MODEL: str = Field(default="gemini-3.6-flash", description="Gemini Model Identifier")
+    
+    # Packaging Dataset Path
+    PACKAGING_DATASET_PATH: str = Field(
+        default="data/packaging_dataset",
+        description="Path to new packaging dataset directory"
+    )
+
     # Economic Targets
     TARGET_MAX_CHECK_COST_USD: float = Field(default=0.075, description="Maximum allowable check cost")
     
     # Resiliency & Concurrency Controls
     INSPECTION_TIMEOUT_SECONDS: float = Field(default=25.0, description="Max execution timeout per unit inspection")
     MAX_CONCURRENT_INSPECTIONS: int = Field(default=10, description="Max concurrent active unit inspections")
+
+    @property
+    def clean_gemini_api_key(self) -> str:
+        """Returns Gemini API key stripped of any punctuation or trailing whitespace."""
+        return self.GEMINI_API_KEY.strip(". \t\r\n")
 
     class Config:
         env_file = ".env"

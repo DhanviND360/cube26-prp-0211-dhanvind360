@@ -13,14 +13,14 @@ services:
       - key: PORT
         value: 8000
       - key: CORS_ORIGINS
-        value: '["https://*.vercel.app","http://localhost:3000"]'
+        value: '["*"]'
       - key: STORAGE_BACKEND
         value: local
       - key: DATABASE_BACKEND
         value: local
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
       - key: DEFAULT_ORG_ID
         value: org_demo_alpha
+      - key: GEMINI_MODEL
+        value: gemini-3.6-flash
+      - key: GEMINI_API_KEY
+        sync: false

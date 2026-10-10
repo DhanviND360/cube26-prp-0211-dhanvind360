@@ -22,12 +22,12 @@
   "properties": {
     "record_id": {
       "type": "string",
-      "pattern": "^PRP-[0-9]{4}$",
+      "pattern": "^PRP-[0-9A-Za-z_-]+$",
       "description": "Unique Prep Stage record identifier."
     },
     "unit_id": {
       "type": "string",
-      "pattern": "^UNIT-[0-9]{4}$",
+      "pattern": "^UNIT-[0-9A-Za-z_-]+$",
       "description": "Shared unit join key across Receiving, Prep, Pack, Returns, and Recovery."
     },
     "org_id": {

@@ -44,7 +44,7 @@ Prep centers operate on thin margins (**$0.40 to $1.10 gross revenue per unit**)
 
 ## 2. Solution Overview
 
-Prep Manager is an enterprise-grade, high-speed visual inbound compliance engine combining **hardware-accelerated nano computer vision, deterministic OpenCV spatial feature extraction, an authoritative Amazon FBA rule engine, and real-time streaming interfaces**.
+Prep Manager is an enterprise-grade, high-speed visual inbound compliance engine powered by **Gemini 3.6 Flash multimodal AI visual reasoning, lightweight optical calibration gating, and standardized evidence persistence**.
 
 ```text
        Physical Capture (Front / Back / Label)
@@ -58,16 +58,13 @@ Prep Manager is an enterprise-grade, high-speed visual inbound compliance engine
         ├─────────────────┬───────────────┤
        YES                │              NO
         ▼                 │               ▼
- [ONNX Nano Detector]     │        [Abstention Gate]
- (31ms DirectML Inference)│        Emit UNCERTAIN Verdict
+ [Gemini 3.6 Flash Agent] │        [Abstention Gate]
+ (Multimodal Visual Reasoning)     Emit UNCERTAIN Verdict
         │                 │        Triage to Supervisor Bench
         ▼                 │
- [OpenCV Spatial Engine]  │
- (Edge Margin, Seam IoU)  │
-        │                 │
-        ▼                 │
- [Authoritative Rules]    │
- (Strict Amazon Standards)│
+ [6 FBA Compliance Checks]│
+ (Seal, Warn, FNSKU, UPC, │
+  Expiry, Handling Marks) │
         │                 │
         └─────────────────┼───────────────┐
                           ▼               ▼
@@ -81,12 +78,13 @@ Prep Manager is an enterprise-grade, high-speed visual inbound compliance engine
 ```
 
 ### Key Technical Pillars
-* **Lightweight YOLO Nano ONNX Detector (`models/best_detector.onnx`):** 7-class nano detector (package, polybag, fnsku, warning, barcode, expiry, handling_mark) running at **31.02ms** inference latency.
-* **Deterministic OpenCV Spatial Engine:** Extracts label-to-edge margin distance, seam overlap ratio, surface curvature, and HSV heat-seal continuity.
-* **Authoritative Rule Engine:** Evaluates exact Amazon requirements without model guessing or LLM hallucinations.
-* **First-Class `UNCERTAIN` Handling (Rule 4):** Abstains when optical quality, specular glare, or ambiguous capture prevents definitive judgment.
-* **Fail-Open Architecture (Rule 3):** Preserves compliance records and marks status as `pending_review` in case of unhandled exceptions, keeping conveyor lines moving.
-* **Tenancy Isolation (Rule 1):** Partitioned by organization ID with row-level security and tenant-scoped storage.
+* **Multimodal AI Agent (`gemini-3.6-flash`):** Evaluates all 3 packaging perspectives against work orders and Amazon FBA packaging rules using advanced visual perception.
+* **New Comprehensive Packaging Dataset (`C:\Dhanvi\HACKATHONS\CUBE_2026_dataset\packaging_dataset`):** 324 annotated photographic captures spanning 4 operational grids (`compliance_scenarios`, `inspection_reference`, `inspection_examples`, `packaged_products`).
+* **Ultra-Low Memory Footprint (<80MB RAM):** Removed bulky PyTorch/EasyOCR dependencies to guarantee 100% stability on Render's 512MB free-tier container without Out-Of-Memory (OOM) errors.
+* **Six Mandated Amazon Compliance Checks:** Evaluates polybag presence & seal, suffocation warning, FNSKU margins & flatness, original barcode coverage, expiration date legibility, and handling markings.
+* **First-Class `UNCERTAIN` Handling:** Evidence-driven decisions; insufficient visual evidence results in `UNCERTAIN` rather than guessing.
+* **Fail-Open Architecture (Rule 3):** Preserves compliance records and marks status as `pending_review` in case of unhandled exceptions, keeping warehouse lines running smoothly.
+* **Tenancy Isolation (Rule 1):** Scoped by organization ID (`org_demo_alpha`, `org_demo_bravo`) with tenant-isolated evidence storage.
 * **Dual-Tier UI & Deployment:**
   1. **Next.js App Router Frontend:** Pure CSS vector industrial interface matching factory floor designs (Blast Door Home, Vault Upload, Animated Conveyor Belt with Double-Click 3-Box Evidence Modal, and 5-Tab Executive Operations Dashboard).
   2. **Self-Contained Client-Side ML Engine (`frontend/src/lib/prep-pipeline.ts`):** 10 curated test samples executing entirely in TypeScript, ready for instant, zero-backend deployment on **Vercel**.

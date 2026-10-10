@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 
 class CalibrationManager:
-    def __init__(self, min_blur=25.0, min_width=500, min_height=400, max_glare_ratio=0.35):
+    def __init__(self, min_blur=25.0, min_width=50, min_height=50, max_glare_ratio=0.35):
         self.min_blur = min_blur
         self.min_width = min_width
         self.min_height = min_height

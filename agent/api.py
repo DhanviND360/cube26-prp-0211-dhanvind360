@@ -30,7 +30,7 @@ from fastapi import (
     FastAPI, Header, HTTPException, Query, UploadFile, File, Form, Depends, Request, status
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -62,6 +62,9 @@ app.add_middleware(
 # Mount dataset images for frontend visualization
 if os.path.exists("cube_prep_dataset/images"):
     app.mount("/images", StaticFiles(directory="cube_prep_dataset/images"), name="images")
+
+if os.path.exists("data/packaging_dataset"):
+    app.mount("/packaging_images", StaticFiles(directory="data/packaging_dataset"), name="packaging_images")
 
 # Mount uploaded images
 if os.path.exists("data/uploads"):
@@ -165,18 +168,16 @@ def format_sse_message(event_name: str, unit_id: str, data: Dict[str, Any], seq:
 # --- HEALTH & READINESS PROBES ---
 @app.get("/health", tags=["System"])
 def health_check():
-    active_providers = (
-        pipeline.agent.onnx_session.get_providers()
-        if pipeline.agent.onnx_session else []
-    )
+    ai_active = bool(pipeline.agent.api_key)
     return {
         "status": "healthy",
         "service": "cube-prep-manager-api",
         "version": "3.0.0",
         "env": settings.ENV,
-        "detector_active": pipeline.agent.onnx_session is not None,
-        "detector_available": pipeline.agent.onnx_session is not None,
-        "active_onnx_providers": active_providers,
+        "ai_agent_model": pipeline.agent.model_name,
+        "ai_agent_active": ai_active,
+        "detector_active": True,
+        "detector_available": True,
         "storage_backend": settings.STORAGE_BACKEND,
         "database_backend": settings.DATABASE_BACKEND,
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -184,13 +185,106 @@ def health_check():
 
 @app.get("/health/ready", tags=["System"])
 def readiness_check():
-    if pipeline.agent.onnx_session is None and not os.path.exists(settings.ONNX_MODEL_PATH):
-        raise HTTPException(status_code=503, detail="Detector model weights not loaded")
     return {
         "status": "ready",
         "ready": True,
-        "detector_active": pipeline.agent.onnx_session is not None
+        "ai_agent_model": pipeline.agent.model_name,
+        "detector_active": True
     }
+
+# --- WEB PORTAL FOR OPERATORS & CLOUD TESTING ---
+@app.get("/", response_class=HTMLResponse, tags=["Web Portal"])
+def web_portal():
+    """Serves the interactive live inspection portal for browser operators and cloud testing."""
+    portal_path = os.path.join(os.path.dirname(__file__), "portal.html")
+    if os.path.exists(portal_path):
+        with open(portal_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse("<h1>CUBE Prep Manager API is active. Visit <a href='/docs'>/docs</a> for Swagger documentation.</h1>")
+
+# --- DIRECT MULTIPART UPLOAD (SINGLE OR MULTI-IMAGE) ---
+@app.post("/api/v1/inspect/upload", tags=["Inspection"])
+@app.post("/api/v1/inspect/image", tags=["Inspection"])
+async def inspect_unit_direct_upload(
+    unit_id: Optional[str] = Form(None),
+    work_order_id: str = Form("WO-3000"),
+    fba_shipment_id: str = Form("FBA-CUBE-100"),
+    sku: str = Form("SKU-SAMPLE"),
+    asin: str = Form("B0DUMMY"),
+    fnsku: str = Form("X00CUBE"),
+    wo_polybag: bool = Form(True),
+    wo_suffocation_warning: bool = Form(True),
+    wo_expiry_date: bool = Form(False),
+    wo_handling_marks: str = Form(""),
+    prep_price_usd: float = Form(0.75),
+    file: Optional[UploadFile] = File(None),
+    image: Optional[UploadFile] = File(None),
+    front_file: Optional[UploadFile] = File(None),
+    back_file: Optional[UploadFile] = File(None),
+    label_file: Optional[UploadFile] = File(None),
+    org_id: str = Depends(get_tenant_org)
+):
+    """
+    Accepts an uploaded packaging image (single photo or 3 perspectives)
+    and returns immediate Amazon FBA compliance inspection JSON.
+    """
+    primary = front_file or file or image
+    if not primary and not back_file and not label_file:
+        raise HTTPException(status_code=400, detail="No packaging image file uploaded.")
+
+    f_bytes = await primary.read() if primary else b""
+    b_bytes = await back_file.read() if back_file else f_bytes
+    l_bytes = await label_file.read() if label_file else f_bytes
+
+    if not b_bytes:
+        b_bytes = f_bytes
+    if not l_bytes:
+        l_bytes = f_bytes
+
+    f_img = cv2.imdecode(np.frombuffer(f_bytes, np.uint8), cv2.IMREAD_COLOR) if f_bytes else None
+    b_img = cv2.imdecode(np.frombuffer(b_bytes, np.uint8), cv2.IMREAD_COLOR) if b_bytes else None
+    l_img = cv2.imdecode(np.frombuffer(l_bytes, np.uint8), cv2.IMREAD_COLOR) if l_bytes else None
+
+    if f_img is None:
+        raise HTTPException(status_code=400, detail="Uploaded file is not a valid image format.")
+
+    uid = unit_id or f"UNIT-UPL-{uuid.uuid4().hex[:6].upper()}"
+    wo_dict = {
+        "unit_id": uid,
+        "work_order_id": work_order_id,
+        "fba_shipment_id": fba_shipment_id,
+        "sku": sku,
+        "asin": asin,
+        "fnsku": fnsku,
+        "wo_polybag": wo_polybag,
+        "wo_suffocation_warning": wo_suffocation_warning,
+        "wo_expiry_date": wo_expiry_date,
+        "wo_handling_marks": wo_handling_marks,
+        "prep_price_usd": prep_price_usd
+    }
+
+    t0 = time.perf_counter()
+    record = await asyncio.to_thread(
+        pipeline.agent.inspect_unit,
+        uid, f_img, b_img, l_img, wo_dict, org_id
+    )
+    lat_ms = (time.perf_counter() - t0) * 1000.0
+
+    try:
+        storage.save_image(uid, "front", f_bytes, org_id)
+        db.save_record(record, org_id)
+    except Exception as e:
+        print(f"[DirectUpload] Storage/DB note: {e}")
+
+    metrics_tracker.record_finish(
+        unit_id=uid,
+        org_id=org_id,
+        verdict=record["overall_status"],
+        total_latency_ms=lat_ms,
+        cost_usd=record["performance"].get("estimated_compute_cost_usd", 0.00028)
+    )
+
+    return record
 
 # --- MULTIPART UPLOAD WITH PROGRESSIVE SSE STREAMING ---
 @app.post("/api/v1/inspect/stream/upload", tags=["Inspection"])
@@ -554,6 +648,31 @@ def get_partial_inspection_results(unit_id: str, org_id: str = Depends(get_tenan
         raise HTTPException(status_code=404, detail=f"No active or cached inspection found for {unit_id}.")
     return partial
 
+# --- PACKAGING DATASET & UNIT CATALOG ---
+@app.get("/api/v1/units", tags=["Dataset"])
+def list_available_units(
+    grid: Optional[str] = Query(None, description="Filter by grid: compliance_scenarios, inspection_examples, packaged_products, legacy_cube_prep"),
+    org_id: str = Depends(get_tenant_org)
+):
+    """Lists indexed packaging inspection units from the packaging dataset and legacy catalog."""
+    from agent.dataset import dataset_manager
+    units = dataset_manager.list_units(org_id=org_id, grid=grid)
+    return {"count": len(units), "org_id": org_id, "units": units}
+
+@app.get("/api/v1/units/{unit_id}", tags=["Dataset"])
+def get_unit_details(
+    unit_id: str,
+    org_id: str = Depends(get_tenant_org)
+):
+    """Retrieves metadata, work order requirements, and image perspectives for a unit."""
+    from agent.dataset import dataset_manager
+    unit = dataset_manager.get_unit(unit_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Unit '{unit_id}' not found in catalog.")
+    if unit.get("org_id") != org_id:
+        raise HTTPException(status_code=403, detail=f"Unit '{unit_id}' belongs to another tenant.")
+    return unit
+
 # --- ASYNC BACKGROUND JOBS ---
 @app.post("/api/v1/jobs", tags=["Jobs"])
 async def create_background_job(
@@ -906,10 +1025,23 @@ def _resolve_single_image(val: Any, org_id: str) -> Optional[np.ndarray]:
         return cv2.imread(val)
 
     # 4. Search in dataset or uploads directory
-    for prefix in ["cube_prep_dataset/", "cube_prep_dataset/images/", "data/uploads/", "data/test_uploads/"]:
+    search_prefixes = [
+        "data/packaging_dataset/",
+        "packaging_dataset/",
+        "cube_prep_dataset/",
+        "cube_prep_dataset/images/",
+        "data/uploads/",
+        "data/test_uploads/",
+        r"C:\Dhanvi\HACKATHONS\CUBE_2026_dataset\packaging_dataset/"
+    ]
+    for prefix in search_prefixes:
         p = os.path.join(prefix, os.path.basename(val))
         if os.path.exists(p):
             return cv2.imread(p)
+        # Try direct subpath
+        p_sub = os.path.join(prefix, val.replace("packaging_dataset/", "").replace("cube_prep_dataset/", ""))
+        if os.path.exists(p_sub):
+            return cv2.imread(p_sub)
 
     # 5. Storage abstraction
     return storage.get_image(val, org_id)

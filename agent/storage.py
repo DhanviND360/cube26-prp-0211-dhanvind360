@@ -50,14 +50,17 @@ class LocalStorageProvider(BaseStorageProvider):
         # Enforce tenancy: path MUST belong to requesting org_id or base fixture directory
         normalized = image_ref.replace("\\", "/")
         
-        # Check if loading from primary dataset fixture
-        if "cube_prep_dataset" in normalized:
+        # Check if loading from primary dataset fixtures
+        if "cube_prep_dataset" in normalized or "packaging_dataset" in normalized or "data/packaging_dataset" in normalized:
             if os.path.exists(normalized):
                 return cv2.imread(normalized)
             # Try prepending repo root if needed
-            alt = os.path.join("cube_prep_dataset", normalized)
-            if os.path.exists(alt):
-                return cv2.imread(alt)
+            for prefix in ["cube_prep_dataset", "data/packaging_dataset", "packaging_dataset"]:
+                alt = os.path.join(prefix, normalized)
+                if os.path.exists(alt):
+                    return cv2.imread(alt)
+            if os.path.exists(image_ref):
+                return cv2.imread(image_ref)
 
         # Tenant isolation check on uploaded assets
         if f"/{org_id}/" not in normalized and not normalized.startswith(f"{self.base_dir}/{org_id}/"):

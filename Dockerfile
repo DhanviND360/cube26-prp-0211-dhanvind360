@@ -8,26 +8,25 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install system dependencies for OpenCV and PyZBar
+# Install minimal system dependencies for headless OpenCV
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
-    libzbar0 \
-    tesseract-ocr \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install core python dependencies
+# Install core python dependencies (optimized for <200MB RAM runtime)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application source, models, and reference data
 COPY agent/ ./agent/
-COPY models/best_detector.onnx ./models/best_detector.onnx
+COPY models/ ./models/
 COPY cube_prep_dataset/ ./cube_prep_dataset/
 COPY data/ ./data/
 COPY reports/ ./reports/
 COPY submissions/ ./submissions/
+COPY app.py ./app.py
 
 EXPOSE 8000
 
