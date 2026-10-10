@@ -24,6 +24,7 @@ import uuid
 import asyncio
 import hashlib
 import tempfile
+from datetime import datetime, timezone
 import numpy as np
 from typing import Optional, List, Dict, Any
 from fastapi import (
@@ -172,8 +173,11 @@ def health_check():
     ai_active = bool(pipeline.agent.api_key)
     return {
         "status": "healthy",
+        "stage": "prep",
+        "agent_id": "prep-manager@1",
+        "contract_version": "1.0",
         "service": "cube-prep-manager-api",
-        "version": "3.0.0",
+        "version": "3.6.0",
         "env": settings.ENV,
         "ai_agent_model": pipeline.agent.model_name,
         "ai_agent_active": ai_active,
@@ -930,14 +934,17 @@ def get_dataset_samples():
 class AgentRunRequest(BaseModel):
     """CUBE Round 3 Agent Input specification."""
     task_id: Optional[str] = Field(None, description="Unique task identifier from orchestrator")
+    workflow_id: Optional[str] = Field(None, description="Unique workflow identifier")
     unit_id: Optional[str] = Field(None, description="Unit identifier to inspect (e.g. UNIT-0001)")
     id: Optional[str] = Field(None, description="Alias for unit_id")
+    subject: Optional[Dict[str, Any]] = Field(None, description="Orchestrator subject envelope: {org_id, subject_id, ...}")
     images: Optional[Dict[str, Any]] = Field(
         None, description="Dict of view->image (base64 string, URL, or local path): {front, back, label}"
     )
     image_refs: Optional[Dict[str, Any]] = Field(
         None, description="Dict of view->file path or URL references: {front, back, label}"
     )
+    inputs: Optional[List[Dict[str, Any]]] = Field(None, description="Orchestrator inputs array")
     photo_front: Optional[str] = Field(None, description="Direct front view image reference/data")
     photo_back: Optional[str] = Field(None, description="Direct back view image reference/data")
     photo_label: Optional[str] = Field(None, description="Direct label view image reference/data")
@@ -957,18 +964,26 @@ class AgentRunRequest(BaseModel):
 class AgentRunResponse(BaseModel):
     """CUBE Round 3 Agent Output specification."""
     task_id: Optional[str] = Field(None, description="Unique task identifier")
+    workflow_id: Optional[str] = Field(None, description="Unique workflow identifier")
     agent: str = Field("prep", description="Agent name")
+    agent_id: str = Field("prep-manager@1", description="Agent identifier with version")
     stage: str = Field("prep", description="Stage identifier")
     org_id: str = Field("org_demo_alpha", description="Tenant organization ID")
     tenant: Optional[str] = Field("org_demo_alpha", description="Alias for org_id")
-    status: str = Field("success", description="Status: success or error")
+    unit_id: str = Field("UNIT-0001", description="Inspected unit identifier")
+    status: str = Field("completed", description="Status: completed or error")
     decision: str = Field("PASS", description="Stage verdict: PASS, FAIL, or UNCERTAIN")
     verdict: str = Field("PASS", description="Alias for decision")
     confidence: float = Field(0.96, description="Confidence score between 0.0 and 1.0")
+    recommendation: str = Field("RELEASE", description="Operational recommendation: RELEASE, CORRECT_AND_REINSPECT, or HUMAN_REVIEW")
+    next_step_recommendation: str = Field("continue", description="Orchestrator advice: continue, route_to_recovery, or review")
     explanation: str = Field("", description="Human-readable decision explanation")
     checks: Dict[str, Any] = Field(default_factory=dict, description="Itemized individual checks")
     evidence: Dict[str, Any] = Field(default_factory=dict, description="Detailed visual and spatial evidence")
     record: Optional[Dict[str, Any]] = Field(None, description="Full compliance record conforming to schema contract")
+    rule_version: str = Field("2026.1", description="Amazon FBA preparation rules specification version")
+    model: Optional[Dict[str, Any]] = Field(default_factory=lambda: {"name": "gemini-3.6-flash", "version": "3.6", "calls": 1})
+    timestamp: Optional[str] = Field(None, description="ISO-8601 UTC execution timestamp")
     error: Optional[str] = Field(None, description="Error message if status is 'error'")
     latency_ms: Optional[float] = Field(None, description="Total execution latency in milliseconds")
 
@@ -1055,21 +1070,93 @@ async def agent_run(
 ):
     """
     CUBE Round 3 Agent /run endpoint.
-    Standardized adapter conforming to the Round 3 Agent Input/Output specification.
-    Callable by Saif's orchestrator and independent clients.
+    Independently callable, orchestrator-ready packaging inspection adapter.
     """
     t_start = time.perf_counter()
-    task_id = request.task_id or f"prep-{uuid.uuid4().hex[:8]}"
 
-    # Validate tenant (Rule 1 & Step 8)
-    org_id = request.org_id or request.tenant or settings.DEFAULT_ORG_ID
+    # Extract unit_id, org_id, and workflow_id with support for subject dict
+    unit_id = request.unit_id or request.id
+    org_id = request.org_id or request.tenant
+    if request.subject and isinstance(request.subject, dict):
+        unit_id = request.subject.get("subject_id") or request.subject.get("unit_id") or unit_id
+        org_id = request.subject.get("org_id") or org_id
+
+    org_id = org_id or settings.DEFAULT_ORG_ID
+
+    # Enforce strict input validation
+    if not unit_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Missing required unit identifier ('unit_id' or 'subject.subject_id')."
+        )
+
+    # Validate tenant isolation (Rule 1 & Step 8)
     if org_id not in VALID_TENANTS:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Invalid or unauthorized organisation/tenant: '{org_id}'. Allowed tenants: {sorted(list(VALID_TENANTS))}"
         )
 
-    unit_id = request.unit_id or request.id or "UNIT-0001"
+    task_id = request.task_id or f"prep-{uuid.uuid4().hex[:8]}"
+    workflow_id = request.workflow_id or f"WF-{org_id}-{unit_id}"
+
+    def _get_recommendations(v: str) -> tuple[str, str]:
+        v_upper = str(v).upper()
+        if v_upper == "PASS":
+            return "RELEASE", "continue"
+        elif v_upper == "FAIL":
+            return "CORRECT_AND_REINSPECT", "route_to_recovery"
+        else:
+            return "HUMAN_REVIEW", "review"
+
+    def _enrich_checks(raw_checks: Dict[str, Any]) -> Dict[str, Any]:
+        enriched = {}
+        action_map = {
+            "polybag_sealed": {
+                "FAIL": "Apply continuous heat-sealed 1.5 mil polybag enclosing item.",
+                "UNCERTAIN": "Inspect package at station to verify seal continuity.",
+                "PASS": "Polybag packaging approved under FBA standards."
+            },
+            "suffocation_warning": {
+                "FAIL": "Affix visible Amazon suffocation warning label to polybag exterior.",
+                "UNCERTAIN": "Re-photograph back face to verify warning text legibility.",
+                "PASS": "Suffocation warning verified legible."
+            },
+            "fnsku_label_placement": {
+                "FAIL": "Remove label from curve/seam and re-apply flat on unobstructed face.",
+                "UNCERTAIN": "Verify barcode flatness with handheld scanner.",
+                "PASS": "FNSKU barcode placement conforms to flat scan standard."
+            },
+            "original_barcode_covered": {
+                "FAIL": "Affix opaque sticker or FNSKU squarely over manufacturer UPC barcode.",
+                "UNCERTAIN": "Check package underside for exposed manufacturer UPCs.",
+                "PASS": "Original barcode successfully covered."
+            },
+            "expiry_date": {
+                "FAIL": "Expose legible expiration date in YYYY-MM-DD format on exterior packaging.",
+                "UNCERTAIN": "Perform manual expiration date verification.",
+                "PASS": "Expiration date verified legible through wrap."
+            },
+            "handling_marks": {
+                "FAIL": "Apply required Fragile / Orientation / Team-Lift handling marks.",
+                "UNCERTAIN": "Verify carton orientation requirements.",
+                "PASS": "Handling marks present and verified."
+            }
+        }
+        for k, v in raw_checks.items():
+            ck_v = str(v.get("verdict", "UNCERTAIN")).upper()
+            if ck_v not in ("PASS", "FAIL", "UNCERTAIN"):
+                ck_v = "UNCERTAIN"
+            default_act = action_map.get(k, {}).get(ck_v, "Proceed according to station protocol.")
+            enriched[k] = {
+                "check_key": k,
+                "verdict": ck_v,
+                "confidence": float(v.get("confidence", 0.95)),
+                "reason": v.get("detail", v.get("reason", "Condition verified against optical stream.")),
+                "evidence_refs": v.get("evidence_refs", [f"img_{k}"]),
+                "action": v.get("action", default_act)
+            }
+        return enriched
 
     try:
         # Extract image inputs across all supported formats
@@ -1105,26 +1192,35 @@ async def agent_run(
         if label_img is None:
             label_img = _resolve_single_image(f"cube_prep_dataset/images/{unit_id}_label.jpg", org_id)
 
-        # Resiliency: Handle unavailable image streams
+        # Resiliency: Handle unavailable image streams safely without crashing
         if front_img is None or back_img is None or label_img is None:
             missing = []
             if front_img is None: missing.append("front")
             if back_img is None: missing.append("back")
             if label_img is None: missing.append("label")
             err_msg = f"Could not resolve required image view(s): {', '.join(missing)} for unit {unit_id}."
+            rec_op, rec_orch = _get_recommendations("UNCERTAIN")
             return AgentRunResponse(
                 task_id=task_id,
+                workflow_id=workflow_id,
                 agent="prep",
+                agent_id="prep-manager@1",
                 stage="prep",
                 org_id=org_id,
                 tenant=org_id,
+                unit_id=unit_id,
                 status="error",
                 decision="UNCERTAIN",
                 verdict="UNCERTAIN",
                 confidence=0.0,
+                recommendation=rec_op,
+                next_step_recommendation=rec_orch,
                 explanation=err_msg,
                 checks={},
                 evidence={"error": err_msg, "missing_views": missing},
+                rule_version="2026.1",
+                model={"name": "gemini-3.6-flash", "version": "3.6", "calls": 0},
+                timestamp=datetime.now(timezone.utc).isoformat(),
                 error=err_msg,
                 latency_ms=round((time.perf_counter() - t_start) * 1000.0, 2)
             )
@@ -1135,20 +1231,29 @@ async def agent_run(
             if existing:
                 cached_decision = existing["overall_status"]
                 cached_conf = existing.get("confidence", 0.96 if cached_decision == "PASS" else (0.92 if cached_decision == "FAIL" else 0.40))
+                rec_op, rec_orch = _get_recommendations(cached_decision)
                 return AgentRunResponse(
                     task_id=task_id,
+                    workflow_id=workflow_id,
                     agent="prep",
+                    agent_id="prep-manager@1",
                     stage="prep",
                     org_id=org_id,
                     tenant=org_id,
-                    status="success",
+                    unit_id=unit_id,
+                    status="completed",
                     decision=cached_decision,
                     verdict=cached_decision,
                     confidence=cached_conf,
+                    recommendation=rec_op,
+                    next_step_recommendation=rec_orch,
                     explanation=existing.get("issue_explanation", ""),
-                    checks=existing.get("checks", {}),
+                    checks=_enrich_checks(existing.get("checks", {})),
                     evidence=existing.get("evidence_vector", {}),
                     record=existing,
+                    rule_version="2026.1",
+                    model={"name": "gemini-3.6-flash", "version": "3.6", "calls": 0},
+                    timestamp=datetime.now(timezone.utc).isoformat(),
                     latency_ms=round((time.perf_counter() - t_start) * 1000.0, 2)
                 )
 
@@ -1183,40 +1288,58 @@ async def agent_run(
 
         decision = record["overall_status"]
         conf = record.get("confidence", 0.96 if decision == "PASS" else (0.92 if decision == "FAIL" else 0.40))
+        rec_op, rec_orch = _get_recommendations(decision)
 
         return AgentRunResponse(
             task_id=task_id,
+            workflow_id=workflow_id,
             agent="prep",
+            agent_id="prep-manager@1",
             stage="prep",
             org_id=org_id,
             tenant=org_id,
-            status="success",
+            unit_id=unit_id,
+            status="completed",
             decision=decision,
             verdict=decision,
             confidence=conf,
+            recommendation=rec_op,
+            next_step_recommendation=rec_orch,
             explanation=record.get("issue_explanation", ""),
-            checks=record.get("checks", {}),
+            checks=_enrich_checks(record.get("checks", {})),
             evidence=record.get("evidence_vector", {}),
             record=record,
+            rule_version="2026.1",
+            model={"name": "gemini-3.6-flash", "version": "3.6", "calls": 1},
+            timestamp=datetime.now(timezone.utc).isoformat(),
             latency_ms=latency_ms
         )
 
     except HTTPException:
         raise
     except Exception as e:
+        rec_op, rec_orch = _get_recommendations("UNCERTAIN")
         return AgentRunResponse(
             task_id=task_id,
+            workflow_id=workflow_id,
             agent="prep",
+            agent_id="prep-manager@1",
             stage="prep",
             org_id=org_id,
             tenant=org_id,
+            unit_id=unit_id or "UNKNOWN",
             status="error",
             decision="UNCERTAIN",
             verdict="UNCERTAIN",
             confidence=0.0,
+            recommendation=rec_op,
+            next_step_recommendation=rec_orch,
             explanation=f"Error executing Prep inspection: {str(e)}",
             checks={},
             evidence={"error": str(e)},
+            rule_version="2026.1",
+            model={"name": "gemini-3.6-flash", "version": "3.6", "calls": 0},
+            timestamp=datetime.now(timezone.utc).isoformat(),
             error=str(e),
             latency_ms=round((time.perf_counter() - t_start) * 1000.0, 2)
         )
