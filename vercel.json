@@ -8,7 +8,11 @@
   "rewrites": [
     {
       "source": "/api/backend/:path*",
-      "destination": "https://cube-prep-manager-api.onrender.com/api/v1/:path*"
+      "destination": "https://cube26-prp-0211-dhanvind360.onrender.com/api/v1/:path*"
+    },
+    {
+      "source": "/api/v1/:path*",
+      "destination": "https://cube26-prp-0211-dhanvind360.onrender.com/api/v1/:path*"
     }
   ],
   "headers": [
